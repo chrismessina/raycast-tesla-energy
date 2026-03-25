@@ -10,8 +10,7 @@ function escSvg(str: string): string {
 }
 
 function toDataUri(svg: string): string {
-  const b64 = btoa(unescape(encodeURIComponent(svg)));
-  return `data:image/svg+xml;base64,${b64}`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
 /**
@@ -25,6 +24,16 @@ export function areaChart(points: number[], color: string, options: ChartOptions
 
   if (n === 0) {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"/>`;
+    return toDataUri(svg);
+  }
+
+  if (n === 1) {
+    const y = height - (points[0] / max) * (height - 4);
+    const svg = [
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">`,
+      `  <line x1="0" y1="${y}" x2="${width}" y2="${y}" stroke="${escSvg(color)}" stroke-width="1.5"/>`,
+      `</svg>`,
+    ].join("\n");
     return toDataUri(svg);
   }
 
@@ -77,6 +86,7 @@ export function barChart(values: number[], color: string, options: ChartOptions 
 
   const bars = values
     .map((v, i) => {
+      if (v <= 0) return "";
       const barH = Math.max(1, (v / max) * (height - 4));
       const x = Math.round(i * gap + (gap - barW) / 2);
       const y = height - barH;
