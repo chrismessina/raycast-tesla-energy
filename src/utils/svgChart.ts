@@ -1,7 +1,7 @@
 export interface ChartOptions {
-  width?: number;         // default: 500
-  height?: number;        // default: 120
-  fillOpacity?: number;   // default: 0.6
+  width?: number; // default: 500
+  height?: number; // default: 120
+  fillOpacity?: number; // default: 0.6
   gridlineColor?: string; // caller resolves: "#555555" dark, "#AAAAAA" light
 }
 
@@ -80,8 +80,8 @@ export function barChart(values: number[], color: string, options: ChartOptions 
     return toDataUri(svg);
   }
 
-  const barW = Math.max(1, Math.floor((width / n) * 0.7));
   const gap = width / n;
+  const barW = Math.max(1, Math.floor(gap * 0.85));
   const midY = height / 2;
 
   const bars = values
@@ -90,7 +90,7 @@ export function barChart(values: number[], color: string, options: ChartOptions 
       const barH = Math.max(1, (v / max) * (height - 4));
       const x = Math.round(i * gap + (gap - barW) / 2);
       const y = height - barH;
-      return `<rect x="${x}" y="${y}" width="${barW}" height="${barH}" fill="${escSvg(color)}" rx="1"/>`;
+      return `<rect x="${x}" y="${y}" width="${barW}" height="${barH}" fill="${escSvg(color)}" rx="2"/>`;
     })
     .join("\n");
 
@@ -125,8 +125,8 @@ export function biChart(
     return toDataUri(svg);
   }
 
-  const barW = Math.max(1, Math.floor((width / n) * 0.7));
   const gap = width / n;
+  const barW = Math.max(1, Math.floor(gap * 0.85));
 
   const bars = values
     .map((v, i) => {
@@ -135,7 +135,7 @@ export function biChart(
       const x = Math.round(i * gap + (gap - barW) / 2);
       const color = v > 0 ? positiveColor : negativeColor;
       const y = v > 0 ? midY - barH : midY;
-      return `<rect x="${x}" y="${y}" width="${barW}" height="${barH}" fill="${escSvg(color)}" rx="1"/>`;
+      return `<rect x="${x}" y="${y}" width="${barW}" height="${barH}" fill="${escSvg(color)}" rx="2"/>`;
     })
     .join("\n");
 

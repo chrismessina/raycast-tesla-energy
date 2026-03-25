@@ -49,18 +49,18 @@ function buildCharts(entries: EnergyHistoryEntry[], period: Period): string {
 
   if (period === "day") {
     return [
-      `![Solar](${areaChart(solar, solarColor, opts)})`,
-      `![Home](${areaChart(home, homeColor, opts)})`,
-      `![Powerwall](${biChart(battery, batteryPos, batteryNeg, opts)})`,
-      `![Grid](${biChart(grid, gridPos, gridNeg, opts)})`,
+      `### Solar\n\n![Solar](${areaChart(solar, solarColor, opts)})`,
+      `### Home\n\n![Home](${areaChart(home, homeColor, opts)})`,
+      `### Powerwall\n\n![Powerwall](${biChart(battery, batteryPos, batteryNeg, opts)})`,
+      `### Grid\n\n![Grid](${biChart(grid, gridPos, gridNeg, opts)})`,
     ].join("\n\n");
   }
 
   return [
-    `![Solar](${barChart(solar, solarColor, opts)})`,
-    `![Home](${barChart(home, homeColor, opts)})`,
-    `![Powerwall](${biChart(battery, batteryPos, batteryNeg, opts)})`,
-    `![Grid](${biChart(grid, gridPos, gridNeg, opts)})`,
+    `### Solar\n\n![Solar](${barChart(solar, solarColor, opts)})`,
+    `### Home\n\n![Home](${barChart(home, homeColor, opts)})`,
+    `### Powerwall\n\n![Powerwall](${biChart(battery, batteryPos, batteryNeg, opts)})`,
+    `### Grid\n\n![Grid](${biChart(grid, gridPos, gridNeg, opts)})`,
   ].join("\n\n");
 }
 
