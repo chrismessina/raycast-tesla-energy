@@ -151,10 +151,11 @@ async function apiFetch<T>(path: string, token: string): Promise<T> {
 export async function fetchEnergySites(token: string): Promise<EnergySite[]> {
   log.step(1, "Fetching energy sites");
   const products = await apiFetch<unknown[]>("/api/1/products", token);
-  const sites = products.filter(
-    (p): p is EnergySite => typeof p === "object" && p !== null && "energy_site_id" in p,
-  );
-  log.info("Found energy sites", { count: sites.length, sites: sites.map((s) => ({ id: s.energy_site_id, name: s.site_name })) });
+  const sites = products.filter((p): p is EnergySite => typeof p === "object" && p !== null && "energy_site_id" in p);
+  log.info("Found energy sites", {
+    count: sites.length,
+    sites: sites.map((s) => ({ id: s.energy_site_id, name: s.site_name })),
+  });
   return sites;
 }
 

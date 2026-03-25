@@ -4,65 +4,77 @@
 _Plan: `docs/superpowers/plans/2026-03-24-solar-production-redesign.md`_
 
 ### Task 1: Create `src/utils/energyCalc.ts`
-- [ ] Create file with `getDateRange` and display helpers
-- [ ] Add aggregation helpers
-- [ ] Build to verify
-- [ ] Commit
+- [x] Create file with `getDateRange` and display helpers
+- [x] Add aggregation helpers
+- [x] Build to verify
+- [x] Commit
 
 ### Task 2: Create `src/utils/svgChart.ts`
-- [ ] Create file with shared types and `escSvg`/`toDataUri` helpers
-- [ ] Add `areaChart`
-- [ ] Add `barChart`
-- [ ] Add `biChart`
-- [ ] Build to verify
-- [ ] Commit
+- [x] Create file with shared types and `escSvg`/`toDataUri` helpers
+- [x] Add `areaChart`
+- [x] Add `barChart`
+- [x] Add `biChart`
+- [x] Build to verify
+- [x] Commit
 
 ### Task 3: Rewrite `src/view-solar-production.tsx`
-- [ ] Write new command
-- [ ] Build to verify
-- [ ] Run in Raycast and verify charts render
-- [ ] Commit
+- [x] Write new command
+- [x] Build to verify
+- [x] Run in Raycast and verify charts render
+- [x] Commit
 
 ### Task 4: Delete `view-history` and update `package.json`
-- [ ] Remove `src/view-history.tsx`
-- [ ] Remove `view-history` command from `package.json`
-- [ ] Update Solar Production description in `package.json`
-- [ ] Build to verify
-- [ ] Commit
+- [x] Remove `src/view-history.tsx`
+- [x] Remove `view-history` command from `package.json`
+- [x] Update Solar Production description in `package.json`
+- [x] Build to verify
+- [x] Commit
 
 ### Task 5: Add period label to markdown heading
-- [ ] Add period heading to chartsMarkdown
-- [ ] Build and verify
-- [ ] Commit
+- [x] Add period heading to chartsMarkdown
+- [x] Build and verify
+- [x] Commit
 
 ### Task 6: Inspect raw API response for vehicle fields
-- [ ] Add temporary debug log to `fetchEnergyHistory`
-- [ ] Run dev and inspect verbose logs for `vehicle_*` fields
-- [ ] Document findings below ↓
-- [ ] Remove debug log
-- [ ] Commit
+- [x] Add temporary debug log to `fetchEnergyHistory`
+- [x] Run dev and inspect verbose logs for `vehicle_*` fields
+- [x] Document findings below ↓
+- [x] Remove debug log
+- [x] Commit
 
 ### Task 7: Update docs
-- [ ] Update `CLAUDE.md` commands section
-- [ ] Mark TODO items complete, add future work notes
-- [ ] Commit
+- [x] Update `CLAUDE.md` commands section
+- [x] Mark TODO items complete, add future work notes
+- [x] Commit
 
 ---
 
 ## Vehicle Field Investigation
-_To be filled in after Task 6_
+_Completed 2026-03-25_
 
 **Fields found in `calendar_history` response not currently in `EnergyHistoryEntry`:**
-- TBD
+- `generator_energy_exported`
+- `battery_energy_imported_from_generator`
+- `consumer_energy_imported_from_generator`
+- `grid_energy_exported_from_generator`
+- `grid_services_energy_imported`
+- `grid_services_energy_exported`
+- `total_home_usage` _(pre-computed convenience total)_
+- `total_battery_discharge` _(pre-computed convenience total)_
+- `total_grid_energy_exported` _(pre-computed convenience total)_
 
-**Conclusion:** TBD — does adding a Vehicle chart require scope expansion, or are the fields already available?
+**No `vehicle_*` fields present.**
+
+**Conclusion:** Vehicle charging data is **not** available under `energy_device_data` scope. Adding a vehicle chart would require scope expansion (a separate OAuth scope). The pre-computed `total_*` fields could simplify aggregation math but are not needed given our existing helpers.
 
 ---
 
 ## Future Work
 
-- [ ] **Vehicle charging chart** — confirm field availability via Task 6 first; if present under `energy_device_data`, add 5th chart panel with no scope changes needed
-- [ ] **Caching / request deduplication** — all 3 commands make independent API calls on init; revisit when adding new commands or if rate limiting becomes an issue
+- [ ] **Vehicle charging chart** — requires scope expansion beyond `energy_device_data`; not available in current API response
+- [ ] **Generator support** — `generator_*` fields are present in the API response; could add generator chart panel if user has a generator
+- [ ] **Grid services chart** — `grid_services_energy_imported/exported` fields present; relevant for users enrolled in demand response programs
+- [ ] **Caching / request deduplication** — all commands make independent API calls on init; revisit when adding new commands or if rate limiting becomes an issue
 - [ ] **Live data overlay** — show current wattage as a marker on the day-view area chart
 - [ ] **Calendar-aligned date ranges** — true calendar week/month vs rolling windows
 - [ ] **Multi-site support** — currently always uses `sites[0]`
