@@ -19,8 +19,7 @@ export function getDateRange(period: Period): { startDate: string; endDate: stri
       start.setDate(start.getDate() - 7);
       break;
     case "month":
-      // Rolling 30-day window — intentionally differs from old view-history.tsx
-      // which used setMonth(-1). Spec mandates rolling windows throughout.
+      // Rolling 30-day window — spec mandates rolling windows throughout.
       start = new Date(now);
       start.setDate(start.getDate() - 30);
       break;
@@ -53,6 +52,10 @@ export function formatDate(timestamp: string, period: Period): string {
 
 // --- Aggregation helpers (totals across all entries) ---
 
+// Note: solar-to-battery flow (battery_energy_imported_from_solar) is counted in both
+// totalSolarGenerated (as part of total solar produced) and totalBatteryCharged (as part
+// of total energy stored). This is intentional — the two totals measure different flows —
+// but means the sidebar numbers will not sum to a single total without accounting for this.
 export function totalSolarGenerated(entries: EnergyHistoryEntry[]): number {
   return entries.reduce(
     (sum, e) => sum + e.solar_energy_exported + e.consumer_energy_imported_from_solar + e.battery_energy_imported_from_solar,
@@ -105,6 +108,12 @@ export function gridPoints(entries: EnergyHistoryEntry[]): number[] {
   return entries.map((e) => e.grid_energy_imported - (e.grid_energy_exported_from_solar + e.grid_energy_exported_from_battery));
 }
 
+/**
+ * Filters out entries with future timestamps.
+ * The Tesla API returns monthly buckets for the full upcoming year in "year" period queries,
+ * resulting in all-zero entries for months that haven't occurred yet.
+ * Apply this before passing year-period data to chart functions.
+ */
 export function filterFutureEntries(entries: EnergyHistoryEntry[]): EnergyHistoryEntry[] {
   const now = new Date();
   return entries.filter((e) => new Date(e.timestamp) <= now);
