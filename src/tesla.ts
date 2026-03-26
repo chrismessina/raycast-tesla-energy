@@ -132,6 +132,8 @@ export interface SelfConsumption {
 
 // --- API Functions ---
 
+const LOCAL_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
 async function apiFetch<T>(path: string, token: string): Promise<T> {
   const url = `${API_BASE}${path}`;
   const pathWithoutQuery = path.split("?")[0];
@@ -191,13 +193,12 @@ export async function fetchSelfConsumption(
   startDate: string,
   endDate: string,
 ): Promise<SelfConsumption | null> {
-  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const params = new URLSearchParams({
     kind: "self_consumption",
     period,
     start_date: startDate,
     end_date: endDate,
-    time_zone: tz,
+    time_zone: LOCAL_TZ,
   });
   const data = await apiFetch<{ time_series: SelfConsumption[] }>(
     `/api/1/energy_sites/${siteId}/calendar_history?${params}`,
@@ -214,13 +215,12 @@ export async function fetchEnergyHistory(
   endDate: string,
 ): Promise<EnergyHistoryEntry[]> {
   log.step(1, "Fetching energy history", { siteId, period, startDate, endDate });
-  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const params = new URLSearchParams({
     kind: "energy",
     period,
     start_date: startDate,
     end_date: endDate,
-    time_zone: tz,
+    time_zone: LOCAL_TZ,
   });
   const data = await apiFetch<{ time_series: EnergyHistoryEntry[] }>(
     `/api/1/energy_sites/${siteId}/calendar_history?${params}`,

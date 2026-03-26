@@ -1,6 +1,6 @@
 import { Action, ActionPanel, Color, Detail, Icon, showToast, Toast, environment } from "@raycast/api";
 import { withAccessToken } from "@raycast/utils";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   provider,
   getToken,
@@ -37,8 +37,8 @@ const PERIOD_LABELS: Record<Period, string> = {
   year: "Past Year",
 };
 
-function resolveColor(dark: string, light: string): string {
-  return environment.appearance === "dark" ? dark : light;
+function resolveColor(isDark: boolean, dark: string, light: string): string {
+  return isDark ? dark : light;
 }
 
 function xLabelsForEntries(entries: EnergyHistoryEntry[], period: Period): string[] {
@@ -66,7 +66,6 @@ function buildCharts(entries: EnergyHistoryEntry[], period: Period): string {
   const labelColor = isDark ? "#888888" : "#AAAAAA";
   const opts = { width: 500, height: 134, gridlineColor, labelColor };
 
-  // Aggregate sub-hourly data into daily buckets for week/month views
   const chartEntries = period === "week" || period === "month" ? aggregateByDay(entries) : entries;
 
   const solar = solarPoints(chartEntries);
@@ -75,12 +74,12 @@ function buildCharts(entries: EnergyHistoryEntry[], period: Period): string {
   const grid = gridPoints(chartEntries);
   const xLabels = xLabelsForEntries(chartEntries, period);
 
-  const solarColor = resolveColor("#C9A227", "#B8860B");
-  const homeColor = resolveColor("#7B68EE", "#6A5ACD");
-  const batteryPos = resolveColor("#30D158", "#248A3D");
-  const batteryNeg = resolveColor("#30D158", "#248A3D");
-  const gridPos = resolveColor("#AEAEB2", "#8E8E93");
-  const gridNeg = resolveColor("#5AC8FA", "#007AFF");
+  const solarColor = resolveColor(isDark, "#C9A227", "#B8860B");
+  const homeColor = resolveColor(isDark, "#7B68EE", "#6A5ACD");
+  const batteryPos = resolveColor(isDark, "#30D158", "#248A3D");
+  const batteryNeg = resolveColor(isDark, "#30D158", "#248A3D");
+  const gridPos = resolveColor(isDark, "#AEAEB2", "#8E8E93");
+  const gridNeg = resolveColor(isDark, "#5AC8FA", "#007AFF");
 
   if (period === "day") {
     return [
@@ -107,6 +106,7 @@ function powerwallLabel(siteInfo: SiteInfo | null): string {
 
 function Command() {
   const token = getToken();
+  const siteIdRef = useRef<number | null>(null);
   const [entries, setEntries] = useState<EnergyHistoryEntry[]>([]);
   const [siteInfo, setSiteInfo] = useState<SiteInfo | null>(null);
   const [selfConsumption, setSelfConsumption] = useState<SelfConsumption | null>(null);
@@ -114,18 +114,25 @@ function Command() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  async function resolveSiteId(): Promise<number | null> {
+    if (siteIdRef.current !== null) return siteIdRef.current;
+    const sites = await fetchEnergySites(token);
+    if (sites.length === 0) return null;
+    siteIdRef.current = sites[0].energy_site_id;
+    return siteIdRef.current;
+  }
+
   async function loadData(p: Period) {
     try {
       setIsLoading(true);
       setError(null);
 
-      const sites = await fetchEnergySites(token);
-      if (sites.length === 0) {
+      const siteId = await resolveSiteId();
+      if (siteId === null) {
         setError("No Tesla energy sites found on your account.");
         return;
       }
 
-      const siteId = sites[0].energy_site_id;
       const { startDate, endDate } = getDateRange(p);
 
       const [historyData, info, sc] = await Promise.all([

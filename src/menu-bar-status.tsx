@@ -1,12 +1,26 @@
 import { Color, Icon, MenuBarExtra, openCommandPreferences, showHUD } from "@raycast/api";
 import { useCachedPromise, withAccessToken } from "@raycast/utils";
 import { provider, getToken, fetchEnergySites, fetchLiveStatus } from "./tesla";
+import { formatPower } from "./utils/energyCalc";
 
-function formatPower(watts: number): string {
-  if (Math.abs(watts) >= 1000) {
-    return `${(watts / 1000).toFixed(1)} kW`;
-  }
-  return `${Math.round(watts)} W`;
+const SUN_ICON = { source: Icon.Sun, tintColor: Color.Yellow };
+
+function batteryTitle(batteryPower: number): string {
+  if (batteryPower > 50) return `Discharging: ${formatPower(batteryPower)}`;
+  if (batteryPower < -50) return `Charging: ${formatPower(Math.abs(batteryPower))}`;
+  return "Standby";
+}
+
+function gridTitle(gridPower: number): string {
+  if (gridPower > 50) return `Importing: ${formatPower(gridPower)}`;
+  if (gridPower < -50) return `Exporting: ${formatPower(Math.abs(gridPower))}`;
+  return "Idle";
+}
+
+function gridTintColor(gridPower: number): Color {
+  if (gridPower > 50) return Color.Orange;
+  if (gridPower < -50) return Color.Green;
+  return Color.SecondaryText;
 }
 
 function Command() {
@@ -29,50 +43,26 @@ function Command() {
   const solarPower = status?.solar_power ?? 0;
   const isProducing = solarPower > 50;
   const title = isProducing ? formatPower(solarPower) : "—";
-  const icon = isProducing
-    ? { source: Icon.Sun, tintColor: Color.Yellow }
-    : { source: Icon.Moon, tintColor: Color.SecondaryText };
+  const icon = isProducing ? SUN_ICON : { source: Icon.Moon, tintColor: Color.SecondaryText };
 
   return (
     <MenuBarExtra icon={icon} title={title} isLoading={isLoading}>
       {status && (
         <>
           <MenuBarExtra.Section title="Solar">
-            <MenuBarExtra.Item
-              icon={{ source: Icon.Sun, tintColor: Color.Yellow }}
-              title={`Production: ${formatPower(status.solar_power)}`}
-            />
+            <MenuBarExtra.Item icon={SUN_ICON} title={`Production: ${formatPower(status.solar_power)}`} />
           </MenuBarExtra.Section>
           <MenuBarExtra.Section title="Powerwall">
             <MenuBarExtra.Item
               icon={{ source: Icon.Battery, tintColor: status.percentage_charged > 20 ? Color.Green : Color.Red }}
               title={`Charge: ${Math.round(status.percentage_charged)}%`}
             />
-            <MenuBarExtra.Item
-              icon={Icon.BatteryCharging}
-              title={
-                status.battery_power > 50
-                  ? `Discharging: ${formatPower(status.battery_power)}`
-                  : status.battery_power < -50
-                    ? `Charging: ${formatPower(Math.abs(status.battery_power))}`
-                    : "Standby"
-              }
-            />
+            <MenuBarExtra.Item icon={Icon.BatteryCharging} title={batteryTitle(status.battery_power)} />
           </MenuBarExtra.Section>
           <MenuBarExtra.Section title="Grid">
             <MenuBarExtra.Item
-              icon={{
-                source: Icon.Signal3,
-                tintColor:
-                  status.grid_power > 50 ? Color.Orange : status.grid_power < -50 ? Color.Green : Color.SecondaryText,
-              }}
-              title={
-                status.grid_power > 50
-                  ? `Importing: ${formatPower(status.grid_power)}`
-                  : status.grid_power < -50
-                    ? `Exporting: ${formatPower(Math.abs(status.grid_power))}`
-                    : "Idle"
-              }
+              icon={{ source: Icon.Signal3, tintColor: gridTintColor(status.grid_power) }}
+              title={gridTitle(status.grid_power)}
             />
           </MenuBarExtra.Section>
           <MenuBarExtra.Section title="Home">

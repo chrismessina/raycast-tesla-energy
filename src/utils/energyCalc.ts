@@ -39,6 +39,11 @@ export function formatEnergy(wh: number): string {
   return `${Math.round(wh)} Wh`;
 }
 
+export function formatPower(watts: number): string {
+  if (Math.abs(watts) >= 1000) return `${(watts / 1000).toFixed(1)} kW`;
+  return `${Math.round(watts)} W`;
+}
+
 export function formatDate(timestamp: string, period: Period): string {
   const date = new Date(timestamp);
   if (period === "day") {
