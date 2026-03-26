@@ -7,8 +7,10 @@ import {
   fetchEnergySites,
   fetchEnergyHistory,
   fetchSiteInfo,
+  fetchSelfConsumption,
   EnergyHistoryEntry,
   SiteInfo,
+  SelfConsumption,
 } from "./tesla";
 import {
   Period,
@@ -107,6 +109,7 @@ function Command() {
   const token = getToken();
   const [entries, setEntries] = useState<EnergyHistoryEntry[]>([]);
   const [siteInfo, setSiteInfo] = useState<SiteInfo | null>(null);
+  const [selfConsumption, setSelfConsumption] = useState<SelfConsumption | null>(null);
   const [period, setPeriod] = useState<Period>("day");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -125,9 +128,10 @@ function Command() {
       const siteId = sites[0].energy_site_id;
       const { startDate, endDate } = getDateRange(p);
 
-      const [historyData, info] = await Promise.all([
+      const [historyData, info, sc] = await Promise.all([
         fetchEnergyHistory(token, siteId, p, startDate, endDate),
         siteInfo === null ? fetchSiteInfo(token, siteId) : Promise.resolve(siteInfo),
+        fetchSelfConsumption(token, siteId, p, startDate, endDate),
       ]);
 
       let data = historyData;
@@ -136,6 +140,7 @@ function Command() {
       }
 
       setEntries(data);
+      setSelfConsumption(sc);
       if (siteInfo === null) setSiteInfo(info);
     } catch (e) {
       const message = e instanceof Error ? e.message : "Unknown error";
@@ -177,6 +182,22 @@ function Command() {
       metadata={
         hasData ? (
           <Detail.Metadata>
+            {selfConsumption && (
+              <>
+                <Detail.Metadata.Label
+                  title="Self-Powered"
+                  text={`${selfConsumption.solar + selfConsumption.battery}%`}
+                  icon={{ source: Icon.Leaf, tintColor: Color.Green }}
+                />
+                <Detail.Metadata.Label title="☀️ Solar" text={`${selfConsumption.solar}%`} />
+                <Detail.Metadata.Label title="🔋 Powerwall" text={`${selfConsumption.battery}%`} />
+                <Detail.Metadata.Label
+                  title="⚡ Grid"
+                  text={`${100 - selfConsumption.solar - selfConsumption.battery}%`}
+                />
+                <Detail.Metadata.Separator />
+              </>
+            )}
             <Detail.Metadata.Label
               title="Solar Production"
               text={`${formatEnergy(totalSolarGenerated(entries))} Generated`}

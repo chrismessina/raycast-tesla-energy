@@ -123,6 +123,13 @@ export interface SiteInfo {
   default_real_mode: string;
 }
 
+export interface SelfConsumption {
+  /** Percentage of home consumption powered by solar (0–100) */
+  solar: number;
+  /** Percentage of home consumption powered by Powerwall battery (0–100) */
+  battery: number;
+}
+
 // --- API Functions ---
 
 async function apiFetch<T>(path: string, token: string): Promise<T> {
@@ -175,6 +182,28 @@ export async function fetchLiveStatus(token: string, siteId: number): Promise<Li
 export async function fetchSiteInfo(token: string, siteId: number): Promise<SiteInfo> {
   log.step(2, "Fetching site info", { siteId });
   return apiFetch<SiteInfo>(`/api/1/energy_sites/${siteId}/site_info`, token);
+}
+
+export async function fetchSelfConsumption(
+  token: string,
+  siteId: number,
+  period: Period,
+  startDate: string,
+  endDate: string,
+): Promise<SelfConsumption | null> {
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const params = new URLSearchParams({
+    kind: "self_consumption",
+    period,
+    start_date: startDate,
+    end_date: endDate,
+    time_zone: tz,
+  });
+  const data = await apiFetch<{ time_series: SelfConsumption[] }>(
+    `/api/1/energy_sites/${siteId}/calendar_history?${params}`,
+    token,
+  );
+  return data.time_series?.[0] ?? null;
 }
 
 export async function fetchEnergyHistory(
