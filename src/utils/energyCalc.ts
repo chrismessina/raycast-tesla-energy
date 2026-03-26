@@ -2,24 +2,26 @@ import type { EnergyHistoryEntry } from "../tesla";
 
 export type Period = "day" | "week" | "month" | "year";
 
+function toLocalDateString(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 export function getDateRange(period: Period): { startDate: string; endDate: string } {
   const now = new Date();
-  const end = now.toISOString();
   let start: Date;
 
   switch (period) {
     case "day":
       start = new Date(now);
-      start.setHours(0, 0, 0, 0);
       break;
     case "week":
-      // Rolling 7-day window — not calendar-aligned. Tesla API may return
-      // fewer than 7 daily points near week boundaries.
       start = new Date(now);
       start.setDate(start.getDate() - 7);
       break;
     case "month":
-      // Rolling 30-day window — spec mandates rolling windows throughout.
       start = new Date(now);
       start.setDate(start.getDate() - 30);
       break;
@@ -29,7 +31,7 @@ export function getDateRange(period: Period): { startDate: string; endDate: stri
       break;
   }
 
-  return { startDate: start.toISOString(), endDate: end };
+  return { startDate: toLocalDateString(start), endDate: toLocalDateString(now) };
 }
 
 export function formatEnergy(wh: number): string {

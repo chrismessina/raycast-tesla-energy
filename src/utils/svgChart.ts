@@ -10,6 +10,8 @@ export interface ChartOptions {
 
 // Extra bottom padding when x-axis labels are present
 const X_LABEL_HEIGHT = 14;
+// Extra top padding to place the peak label above the chart area
+const PEAK_LABEL_HEIGHT = 14;
 
 function escSvg(str: string): string {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -44,13 +46,15 @@ export function areaChart(points: number[], color: string, options: ChartOptions
     width = 500,
     fillOpacity = 0.6,
     gridlineColor = "#555555",
-    labelColor = "#888888",
+    labelColor = "#AAAAAA",
     xLabels,
     peakLabel,
   } = options;
   const hasLabels = xLabels && xLabels.length > 0;
-  const chartHeight = (options.height ?? 120) - (hasLabels ? X_LABEL_HEIGHT : 0);
-  const totalHeight = chartHeight + (hasLabels ? X_LABEL_HEIGHT : 0);
+  const topPad = peakLabel ? PEAK_LABEL_HEIGHT : 0;
+  const botPad = hasLabels ? X_LABEL_HEIGHT : 0;
+  const chartHeight = (options.height ?? 120) - topPad - botPad;
+  const totalHeight = chartHeight + topPad + botPad;
   const max = Math.max(...points, 1);
   const n = points.length;
 
@@ -59,7 +63,7 @@ export function areaChart(points: number[], color: string, options: ChartOptions
   }
 
   if (n === 1) {
-    const y = chartHeight - (points[0] / max) * (chartHeight - 4);
+    const y = topPad + chartHeight - (points[0] / max) * (chartHeight - 4);
     return toDataUri(
       [
         `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${totalHeight}">`,
@@ -70,7 +74,7 @@ export function areaChart(points: number[], color: string, options: ChartOptions
   }
 
   const xs = points.map((_, i) => (i / (n - 1)) * width);
-  const ys = points.map((v) => chartHeight - (v / max) * (chartHeight - 4));
+  const ys = points.map((v) => topPad + chartHeight - (v / max) * (chartHeight - 4));
 
   let d = `M ${xs[0]},${ys[0]}`;
   for (let i = 1; i < n; i++) {
@@ -81,8 +85,8 @@ export function areaChart(points: number[], color: string, options: ChartOptions
     d += ` C ${cpx1},${cpy1} ${cpx2},${cpy2} ${xs[i]},${ys[i]}`;
   }
 
-  const fillPath = `${d} L ${xs[n - 1]},${chartHeight} L ${xs[0]},${chartHeight} Z`;
-  const midY = chartHeight / 2;
+  const fillPath = `${d} L ${xs[n - 1]},${topPad + chartHeight} L ${xs[0]},${topPad + chartHeight} Z`;
+  const midY = topPad + chartHeight / 2;
 
   const labelEls: string[] = [];
   if (hasLabels) {
@@ -99,7 +103,7 @@ export function areaChart(points: number[], color: string, options: ChartOptions
   }
 
   const peakEl = peakLabel
-    ? `  <text x="${width - 2}" y="10" font-size="9" fill="${escSvg(labelColor)}" text-anchor="end" font-family="sans-serif">${escSvg(peakLabel)}</text>`
+    ? `  <text x="${width - 2}" y="${PEAK_LABEL_HEIGHT - 2}" font-size="9" fill="${escSvg(labelColor)}" text-anchor="end" font-family="sans-serif">${escSvg(peakLabel)}</text>`
     : "";
 
   const svg = [
@@ -120,10 +124,12 @@ export function areaChart(points: number[], color: string, options: ChartOptions
  * Used for week/month/year Solar and Home charts.
  */
 export function barChart(values: number[], color: string, options: ChartOptions = {}): string {
-  const { width = 500, gridlineColor = "#555555", labelColor = "#888888", xLabels, peakLabel } = options;
+  const { width = 500, gridlineColor = "#555555", labelColor = "#AAAAAA", xLabels, peakLabel } = options;
   const hasLabels = xLabels && xLabels.length > 0;
-  const chartHeight = (options.height ?? 120) - (hasLabels ? X_LABEL_HEIGHT : 0);
-  const totalHeight = chartHeight + (hasLabels ? X_LABEL_HEIGHT : 0);
+  const topPad = peakLabel ? PEAK_LABEL_HEIGHT : 0;
+  const botPad = hasLabels ? X_LABEL_HEIGHT : 0;
+  const chartHeight = (options.height ?? 120) - topPad - botPad;
+  const totalHeight = chartHeight + topPad + botPad;
   const max = Math.max(...values, 1);
   const n = values.length;
 
@@ -133,14 +139,14 @@ export function barChart(values: number[], color: string, options: ChartOptions 
 
   const gap = width / n;
   const barW = Math.max(1, Math.floor(gap * 0.85));
-  const midY = chartHeight / 2;
+  const midY = topPad + chartHeight / 2;
 
   const bars = values
     .map((v, i) => {
       if (v <= 0) return "";
       const barH = Math.max(1, (v / max) * (chartHeight - 4));
       const x = Math.round(i * gap + (gap - barW) / 2);
-      const y = chartHeight - barH;
+      const y = topPad + chartHeight - barH;
       return `  <rect x="${x}" y="${y}" width="${barW}" height="${barH}" fill="${escSvg(color)}" rx="2"/>`;
     })
     .join("\n");
@@ -160,7 +166,7 @@ export function barChart(values: number[], color: string, options: ChartOptions 
   }
 
   const peakEl = peakLabel
-    ? `  <text x="${width - 2}" y="10" font-size="9" fill="${escSvg(labelColor)}" text-anchor="end" font-family="sans-serif">${escSvg(peakLabel)}</text>`
+    ? `  <text x="${width - 2}" y="${PEAK_LABEL_HEIGHT - 2}" font-size="9" fill="${escSvg(labelColor)}" text-anchor="end" font-family="sans-serif">${escSvg(peakLabel)}</text>`
     : "";
 
   const svg = [
@@ -186,13 +192,15 @@ export function biChart(
   negativeColor: string,
   options: ChartOptions = {},
 ): string {
-  const { width = 500, gridlineColor = "#555555", labelColor = "#888888", xLabels, peakLabel } = options;
+  const { width = 500, gridlineColor = "#555555", labelColor = "#AAAAAA", xLabels, peakLabel } = options;
   const hasLabels = xLabels && xLabels.length > 0;
-  const chartHeight = (options.height ?? 120) - (hasLabels ? X_LABEL_HEIGHT : 0);
-  const totalHeight = chartHeight + (hasLabels ? X_LABEL_HEIGHT : 0);
+  const topPad = peakLabel ? PEAK_LABEL_HEIGHT : 0;
+  const botPad = hasLabels ? X_LABEL_HEIGHT : 0;
+  const chartHeight = (options.height ?? 120) - topPad - botPad;
+  const totalHeight = chartHeight + topPad + botPad;
   const absMax = Math.max(...values.map(Math.abs), 1);
   const n = values.length;
-  const midY = chartHeight / 2;
+  const midY = topPad + chartHeight / 2;
 
   if (n === 0) {
     return toDataUri(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${totalHeight}"/>`);
@@ -204,7 +212,7 @@ export function biChart(
   const bars = values
     .map((v, i) => {
       if (v === 0) return "";
-      const barH = Math.max(1, (Math.abs(v) / absMax) * (midY - 2));
+      const barH = Math.max(1, (Math.abs(v) / absMax) * (chartHeight / 2 - 2));
       const x = Math.round(i * gap + (gap - barW) / 2);
       const barColor = v > 0 ? positiveColor : negativeColor;
       const y = v > 0 ? midY - barH : midY;
@@ -227,7 +235,7 @@ export function biChart(
   }
 
   const peakEl = peakLabel
-    ? `  <text x="${width - 2}" y="10" font-size="9" fill="${escSvg(labelColor)}" text-anchor="end" font-family="sans-serif">${escSvg(peakLabel)}</text>`
+    ? `  <text x="${width - 2}" y="${PEAK_LABEL_HEIGHT - 2}" font-size="9" fill="${escSvg(labelColor)}" text-anchor="end" font-family="sans-serif">${escSvg(peakLabel)}</text>`
     : "";
 
   const svg = [

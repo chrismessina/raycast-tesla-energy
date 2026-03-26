@@ -63,7 +63,7 @@ function peakKwh(values: number[]): string {
 function buildCharts(entries: EnergyHistoryEntry[], period: Period): string {
   const isDark = environment.appearance === "dark";
   const gridlineColor = isDark ? "#555555" : "#AAAAAA";
-  const labelColor = isDark ? "#888888" : "#AAAAAA";
+  const labelColor = isDark ? "#CCCCCC" : "#555555";
   const opts = { width: 500, height: 134, gridlineColor, labelColor };
 
   const chartEntries = period === "week" || period === "month" ? aggregateByDay(entries) : entries;
