@@ -3,7 +3,7 @@
   "name": "tesla-energy",
   "title": "Tesla Energy",
   "description": "Monitor your Tesla solar panels and Powerwalls. View real-time solar production, battery charge, grid usage, and energy history.",
-  "icon": "extension-icon.png",
+  "icon": "raycast-energy-icon.png",
   "author": "chrismessina",
   "platforms": [
     "macOS",
@@ -13,17 +13,6 @@
     "Data"
   ],
   "license": "MIT",
-  "preferences": [
-    {
-      "name": "verboseLogging",
-      "title": "Verbose Logging",
-      "description": "Enable detailed logging for debugging Tesla API calls",
-      "type": "checkbox",
-      "default": false,
-      "required": false,
-      "label": "Enable verbose logging"
-    }
-  ],
   "commands": [
     {
       "name": "view-solar-production",
@@ -39,6 +28,17 @@
       "description": "Show current solar production and Powerwall charge in the menu bar",
       "mode": "menu-bar",
       "interval": "10m"
+    }
+  ],
+  "preferences": [
+    {
+      "name": "verboseLogging",
+      "title": "Verbose Logging",
+      "description": "Enable detailed logging for debugging Tesla API calls",
+      "type": "checkbox",
+      "default": false,
+      "required": false,
+      "label": "Enable verbose logging"
     }
   ],
   "dependencies": {
