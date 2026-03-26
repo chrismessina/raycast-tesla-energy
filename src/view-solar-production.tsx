@@ -171,9 +171,11 @@ function Command() {
   const hasData = entries.length > 0;
   const periodLabel = PERIOD_LABELS[period];
   const pwLabel = powerwallLabel(siteInfo);
-  const chartsMarkdown = hasData
-    ? `## ${periodLabel}\n\n${buildCharts(entries, period)}`
-    : `## ${periodLabel}\n\n_No data available for this period._`;
+  const chartsMarkdown = isLoading
+    ? ""
+    : hasData
+      ? `## ${periodLabel}\n\n${buildCharts(entries, period)}`
+      : `## ${periodLabel}\n\n_No data available for this period._`;
 
   return (
     <Detail
