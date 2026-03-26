@@ -58,14 +58,19 @@ export function formatDate(timestamp: string, period: Period): string {
 // but means the sidebar numbers will not sum to a single total without accounting for this.
 export function totalSolarGenerated(entries: EnergyHistoryEntry[]): number {
   return entries.reduce(
-    (sum, e) => sum + e.solar_energy_exported + e.consumer_energy_imported_from_solar + e.battery_energy_imported_from_solar,
+    (sum, e) =>
+      sum + e.solar_energy_exported + e.consumer_energy_imported_from_solar + e.battery_energy_imported_from_solar,
     0,
   );
 }
 
 export function totalHomeUsed(entries: EnergyHistoryEntry[]): number {
   return entries.reduce(
-    (sum, e) => sum + e.consumer_energy_imported_from_solar + e.consumer_energy_imported_from_battery + e.consumer_energy_imported_from_grid,
+    (sum, e) =>
+      sum +
+      e.consumer_energy_imported_from_solar +
+      e.consumer_energy_imported_from_battery +
+      e.consumer_energy_imported_from_grid,
     0,
   );
 }
@@ -91,21 +96,60 @@ export function totalGridNet(entries: EnergyHistoryEntry[]): number {
 // --- Per-entry series helpers (one value per data point, for charts) ---
 
 export function solarPoints(entries: EnergyHistoryEntry[]): number[] {
-  return entries.map((e) => e.solar_energy_exported + e.consumer_energy_imported_from_solar + e.battery_energy_imported_from_solar);
+  return entries.map(
+    (e) => e.solar_energy_exported + e.consumer_energy_imported_from_solar + e.battery_energy_imported_from_solar,
+  );
 }
 
 export function homePoints(entries: EnergyHistoryEntry[]): number[] {
-  return entries.map((e) => e.consumer_energy_imported_from_solar + e.consumer_energy_imported_from_battery + e.consumer_energy_imported_from_grid);
+  return entries.map(
+    (e) =>
+      e.consumer_energy_imported_from_solar +
+      e.consumer_energy_imported_from_battery +
+      e.consumer_energy_imported_from_grid,
+  );
 }
 
 export function batteryPoints(entries: EnergyHistoryEntry[]): number[] {
   // Positive = discharging, negative = charging
-  return entries.map((e) => e.battery_energy_exported - (e.battery_energy_imported_from_solar + e.battery_energy_imported_from_grid));
+  return entries.map(
+    (e) => e.battery_energy_exported - (e.battery_energy_imported_from_solar + e.battery_energy_imported_from_grid),
+  );
 }
 
 export function gridPoints(entries: EnergyHistoryEntry[]): number[] {
   // Positive = importing from grid, negative = exporting to grid
-  return entries.map((e) => e.grid_energy_imported - (e.grid_energy_exported_from_solar + e.grid_energy_exported_from_battery));
+  return entries.map(
+    (e) => e.grid_energy_imported - (e.grid_energy_exported_from_solar + e.grid_energy_exported_from_battery),
+  );
+}
+
+/**
+ * Aggregates sub-hourly or hourly entries into daily buckets.
+ * Used for week/month period views where Tesla returns fine-grained data.
+ * The bucket key is the local date string (YYYY-MM-DD) derived from the timestamp.
+ */
+export function aggregateByDay(entries: EnergyHistoryEntry[]): EnergyHistoryEntry[] {
+  const buckets = new Map<string, EnergyHistoryEntry>();
+  for (const e of entries) {
+    const key = e.timestamp.slice(0, 10); // "YYYY-MM-DD"
+    const existing = buckets.get(key);
+    if (!existing) {
+      buckets.set(key, { ...e });
+    } else {
+      existing.solar_energy_exported += e.solar_energy_exported;
+      existing.grid_energy_imported += e.grid_energy_imported;
+      existing.grid_energy_exported_from_solar += e.grid_energy_exported_from_solar;
+      existing.grid_energy_exported_from_battery += e.grid_energy_exported_from_battery;
+      existing.battery_energy_exported += e.battery_energy_exported;
+      existing.battery_energy_imported_from_grid += e.battery_energy_imported_from_grid;
+      existing.battery_energy_imported_from_solar += e.battery_energy_imported_from_solar;
+      existing.consumer_energy_imported_from_grid += e.consumer_energy_imported_from_grid;
+      existing.consumer_energy_imported_from_solar += e.consumer_energy_imported_from_solar;
+      existing.consumer_energy_imported_from_battery += e.consumer_energy_imported_from_battery;
+    }
+  }
+  return Array.from(buckets.values());
 }
 
 /**

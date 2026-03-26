@@ -1,12 +1,21 @@
 import { Action, ActionPanel, Color, Detail, Icon, showToast, Toast, environment } from "@raycast/api";
 import { withAccessToken } from "@raycast/utils";
 import { useEffect, useState } from "react";
-import { provider, getToken, fetchEnergySites, fetchEnergyHistory, EnergyHistoryEntry } from "./tesla";
+import {
+  provider,
+  getToken,
+  fetchEnergySites,
+  fetchEnergyHistory,
+  fetchSiteInfo,
+  EnergyHistoryEntry,
+  SiteInfo,
+} from "./tesla";
 import {
   Period,
   getDateRange,
   formatEnergy,
   filterFutureEntries,
+  aggregateByDay,
   totalSolarGenerated,
   totalHomeUsed,
   totalBatteryDischarged,
@@ -30,15 +39,39 @@ function resolveColor(dark: string, light: string): string {
   return environment.appearance === "dark" ? dark : light;
 }
 
+function xLabelsForEntries(entries: EnergyHistoryEntry[], period: Period): string[] {
+  return entries.map((e) => {
+    const d = new Date(e.timestamp);
+    if (period === "day") {
+      return d.toLocaleTimeString(undefined, { hour: "numeric" });
+    }
+    if (period === "week" || period === "month") {
+      return String(d.getDate()); // day-of-month number
+    }
+    return d.toLocaleDateString(undefined, { month: "short" });
+  });
+}
+
+function peakKwh(values: number[]): string {
+  const max = Math.max(...values, 0);
+  if (max === 0) return "";
+  return formatEnergy(max);
+}
+
 function buildCharts(entries: EnergyHistoryEntry[], period: Period): string {
   const isDark = environment.appearance === "dark";
   const gridlineColor = isDark ? "#555555" : "#AAAAAA";
-  const opts = { width: 500, height: 120, gridlineColor };
+  const labelColor = isDark ? "#888888" : "#AAAAAA";
+  const opts = { width: 500, height: 134, gridlineColor, labelColor };
 
-  const solar = solarPoints(entries);
-  const home = homePoints(entries);
-  const battery = batteryPoints(entries);
-  const grid = gridPoints(entries);
+  // Aggregate sub-hourly data into daily buckets for week/month views
+  const chartEntries = period === "week" || period === "month" ? aggregateByDay(entries) : entries;
+
+  const solar = solarPoints(chartEntries);
+  const home = homePoints(chartEntries);
+  const battery = batteryPoints(chartEntries);
+  const grid = gridPoints(chartEntries);
+  const xLabels = xLabelsForEntries(chartEntries, period);
 
   const solarColor = resolveColor("#C9A227", "#B8860B");
   const homeColor = resolveColor("#7B68EE", "#6A5ACD");
@@ -49,24 +82,31 @@ function buildCharts(entries: EnergyHistoryEntry[], period: Period): string {
 
   if (period === "day") {
     return [
-      `### Solar\n\n![Solar](${areaChart(solar, solarColor, opts)})`,
-      `### Home\n\n![Home](${areaChart(home, homeColor, opts)})`,
-      `### Powerwall\n\n![Powerwall](${biChart(battery, batteryPos, batteryNeg, opts)})`,
-      `### Grid\n\n![Grid](${biChart(grid, gridPos, gridNeg, opts)})`,
+      `### Solar\n\n![Solar](${areaChart(solar, solarColor, { ...opts, xLabels, peakLabel: peakKwh(solar) })})`,
+      `### Home\n\n![Home](${areaChart(home, homeColor, { ...opts, xLabels, peakLabel: peakKwh(home) })})`,
+      `### Powerwall\n\n![Powerwall](${biChart(battery, batteryPos, batteryNeg, { ...opts, xLabels, peakLabel: peakKwh(battery.map(Math.abs)) })})`,
+      `### Grid\n\n![Grid](${biChart(grid, gridPos, gridNeg, { ...opts, xLabels, peakLabel: peakKwh(grid.map(Math.abs)) })})`,
     ].join("\n\n");
   }
 
   return [
-    `### Solar\n\n![Solar](${barChart(solar, solarColor, opts)})`,
-    `### Home\n\n![Home](${barChart(home, homeColor, opts)})`,
-    `### Powerwall\n\n![Powerwall](${biChart(battery, batteryPos, batteryNeg, opts)})`,
-    `### Grid\n\n![Grid](${biChart(grid, gridPos, gridNeg, opts)})`,
+    `### Solar\n\n![Solar](${barChart(solar, solarColor, { ...opts, xLabels, peakLabel: peakKwh(solar) })})`,
+    `### Home\n\n![Home](${barChart(home, homeColor, { ...opts, xLabels, peakLabel: peakKwh(home) })})`,
+    `### Powerwall\n\n![Powerwall](${biChart(battery, batteryPos, batteryNeg, { ...opts, xLabels, peakLabel: peakKwh(battery.map(Math.abs)) })})`,
+    `### Grid\n\n![Grid](${biChart(grid, gridPos, gridNeg, { ...opts, xLabels, peakLabel: peakKwh(grid.map(Math.abs)) })})`,
   ].join("\n\n");
+}
+
+function powerwallLabel(siteInfo: SiteInfo | null): string {
+  const count = siteInfo?.components?.battery_count;
+  if (!count || count <= 0) return "Powerwall";
+  return `Powerwall ${count}x`;
 }
 
 function Command() {
   const token = getToken();
   const [entries, setEntries] = useState<EnergyHistoryEntry[]>([]);
+  const [siteInfo, setSiteInfo] = useState<SiteInfo | null>(null);
   const [period, setPeriod] = useState<Period>("day");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -82,14 +122,21 @@ function Command() {
         return;
       }
 
+      const siteId = sites[0].energy_site_id;
       const { startDate, endDate } = getDateRange(p);
-      let data = await fetchEnergyHistory(token, sites[0].energy_site_id, p, startDate, endDate);
 
+      const [historyData, info] = await Promise.all([
+        fetchEnergyHistory(token, siteId, p, startDate, endDate),
+        siteInfo === null ? fetchSiteInfo(token, siteId) : Promise.resolve(siteInfo),
+      ]);
+
+      let data = historyData;
       if (p === "year") {
         data = filterFutureEntries(data);
       }
 
       setEntries(data);
+      if (siteInfo === null) setSiteInfo(info);
     } catch (e) {
       const message = e instanceof Error ? e.message : "Unknown error";
       setError(message);
@@ -118,6 +165,7 @@ function Command() {
 
   const hasData = entries.length > 0;
   const periodLabel = PERIOD_LABELS[period];
+  const pwLabel = powerwallLabel(siteInfo);
   const chartsMarkdown = hasData
     ? `## ${periodLabel}\n\n${buildCharts(entries, period)}`
     : `## ${periodLabel}\n\n_No data available for this period._`;
@@ -142,12 +190,12 @@ function Command() {
             />
             <Detail.Metadata.Separator />
             <Detail.Metadata.Label
-              title="Powerwall Discharged"
+              title={`${pwLabel} Discharged`}
               text={formatEnergy(totalBatteryDischarged(entries))}
               icon={{ source: Icon.Battery, tintColor: Color.Green }}
             />
             <Detail.Metadata.Label
-              title="Powerwall Charged"
+              title={`${pwLabel} Charged`}
               text={formatEnergy(totalBatteryCharged(entries))}
               icon={{ source: Icon.BatteryCharging, tintColor: Color.Green }}
             />

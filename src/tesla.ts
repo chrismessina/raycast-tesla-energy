@@ -114,6 +114,7 @@ export interface SiteInfo {
     solar: boolean;
     solar_type: string;
     battery: boolean;
+    battery_count?: number;
     grid: boolean;
     load_meter: boolean;
     wall_connectors: unknown[];
