@@ -32,9 +32,9 @@ import { areaChart, barChart, biChart } from "./utils/svgChart";
 
 const PERIOD_LABELS: Record<Period, string> = {
   day: "Today",
-  week: "Past 7 Days",
-  month: "Past 30 Days",
-  year: "Past Year",
+  week: "This Week",
+  month: "This Month",
+  year: "Year to Date",
 };
 
 function resolveColor(isDark: boolean, dark: string, light: string): string {
@@ -152,7 +152,15 @@ function Command() {
     } catch (e) {
       const message = e instanceof Error ? e.message : "Unknown error";
       setError(message);
-      showToast({ style: Toast.Style.Failure, title: "Failed to load data", message });
+      showToast({
+        style: Toast.Style.Failure,
+        title: "Failed to load data",
+        message,
+        primaryAction: {
+          title: "Copy Error",
+          onAction: () => Clipboard.copy(message),
+        },
+      });
     } finally {
       setIsLoading(false);
     }
@@ -251,9 +259,9 @@ function Command() {
           <Action title="Refresh" icon={Icon.ArrowClockwise} onAction={() => loadData(period)} />
           <ActionPanel.Section title="Period">
             <Action title="Today" onAction={() => setPeriod("day")} />
-            <Action title="Past 7 Days" onAction={() => setPeriod("week")} />
-            <Action title="Past 30 Days" onAction={() => setPeriod("month")} />
-            <Action title="Past Year" onAction={() => setPeriod("year")} />
+            <Action title="This Week" onAction={() => setPeriod("week")} />
+            <Action title="This Month" onAction={() => setPeriod("month")} />
+            <Action title="Year to Date" onAction={() => setPeriod("year")} />
           </ActionPanel.Section>
         </ActionPanel>
       }

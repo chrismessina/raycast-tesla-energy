@@ -2,28 +2,9 @@ import type { EnergyHistoryEntry } from "../tesla";
 
 export type Period = "day" | "week" | "month" | "year";
 
-/**
- * Formats a Date as a local datetime string with timezone offset:
- * "2026-03-26T00:00:00+07:00" — the format Tesla's calendar_history API requires.
- * Using UTC ISO strings causes a 400 parse error; bare YYYY-MM-DD also fails.
- */
-function toLocalISOString(date: Date): string {
-  const y = date.getFullYear();
-  const mo = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  const h = String(date.getHours()).padStart(2, "0");
-  const mi = String(date.getMinutes()).padStart(2, "0");
-  const s = String(date.getSeconds()).padStart(2, "0");
-  const offsetMin = -date.getTimezoneOffset();
-  const sign = offsetMin >= 0 ? "+" : "-";
-  const absOffset = Math.abs(offsetMin);
-  const oh = String(Math.floor(absOffset / 60)).padStart(2, "0");
-  const om = String(absOffset % 60).padStart(2, "0");
-  return `${y}-${mo}-${d}T${h}:${mi}:${s}${sign}${oh}:${om}`;
-}
-
 export function getDateRange(period: Period): { startDate: string; endDate: string } {
   const now = new Date();
+  const end = now.toISOString();
   let start: Date;
 
   switch (period) {
@@ -34,21 +15,18 @@ export function getDateRange(period: Period): { startDate: string; endDate: stri
     case "week":
       start = new Date(now);
       start.setDate(start.getDate() - 7);
-      start.setHours(0, 0, 0, 0);
       break;
     case "month":
       start = new Date(now);
       start.setDate(start.getDate() - 30);
-      start.setHours(0, 0, 0, 0);
       break;
     case "year":
       start = new Date(now);
       start.setFullYear(start.getFullYear() - 1);
-      start.setHours(0, 0, 0, 0);
       break;
   }
 
-  return { startDate: toLocalISOString(start), endDate: toLocalISOString(now) };
+  return { startDate: start.toISOString(), endDate: end };
 }
 
 export function formatEnergy(wh: number): string {
