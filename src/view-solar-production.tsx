@@ -1,4 +1,4 @@
-import { Action, ActionPanel, Color, Detail, Icon, showToast, Toast, environment } from "@raycast/api";
+import { Action, ActionPanel, Color, Detail, Icon, showToast, Toast, environment, Clipboard } from "@raycast/api";
 import { withAccessToken } from "@raycast/utils";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -169,6 +169,12 @@ function Command() {
         actions={
           <ActionPanel>
             <Action title="Retry" icon={Icon.ArrowClockwise} onAction={() => loadData(period)} />
+            <Action
+              title="Copy Error"
+              icon={Icon.Clipboard}
+              shortcut={{ modifiers: ["cmd"], key: "c" }}
+              onAction={() => Clipboard.copy(error)}
+            />
           </ActionPanel>
         }
       />
