@@ -166,7 +166,7 @@ export function barChart(values: number[], color: string, options: ChartOptions 
   }
 
   const peakEl = peakLabel
-    ? `  <text x="${width - 2}" y="${PEAK_LABEL_HEIGHT - 2}" font-size="9" fill="${escSvg(labelColor)}" text-anchor="end" font-family="sans-serif">${escSvg(peakLabel)}</text>`
+    ? `  <text x="${width - 2}" y="${PEAK_LABEL_HEIGHT - 1}" font-size="9" fill="${escSvg(labelColor)}" text-anchor="end" font-family="sans-serif">${escSvg(peakLabel)}</text>`
     : "";
 
   const svg = [
@@ -235,7 +235,7 @@ export function biChart(
   }
 
   const peakEl = peakLabel
-    ? `  <text x="${width - 2}" y="${PEAK_LABEL_HEIGHT - 2}" font-size="9" fill="${escSvg(labelColor)}" text-anchor="end" font-family="sans-serif">${escSvg(peakLabel)}</text>`
+    ? `  <text x="${width - 2}" y="${PEAK_LABEL_HEIGHT - 1}" font-size="9" fill="${escSvg(labelColor)}" text-anchor="end" font-family="sans-serif">${escSvg(peakLabel)}</text>`
     : "";
 
   const svg = [
