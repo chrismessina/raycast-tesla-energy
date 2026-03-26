@@ -15,4 +15,4 @@ compiled_raycast_rust
 .claude
 .github/docs/.private
 .windsurf
-./docs/superpowers/*
+docs/superpowers/*
