@@ -21,7 +21,7 @@ Live solar wattage in the menu bar, refreshed every 10 minutes.
 
 ## Setup
 
-This extension requires a Tesla Fleet API application and OAuth credentials configured via the Raycast PKCE proxy. See `SETUP.md` for the full procedure.
+This extension requires a Tesla Fleet API application and OAuth credentials configured via the Raycast PKCE proxy. See `.github/docs/SETUP.md` for the full procedure.
 
 ## Requirements
 

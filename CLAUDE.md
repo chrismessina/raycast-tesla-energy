@@ -14,33 +14,37 @@ npm run publish      # Publish to Raycast Store
 
 ## Architecture
 
-This is a Raycast extension with two commands, both backed by a single API module:
+Two commands backed by a shared API module and two utility modules:
 
-**`src/tesla.ts`** — shared Tesla Fleet API client. All API types, OAuth configuration, and fetch functions live here. Every command imports from this module.
+**`src/tesla.ts`** — Tesla Fleet API client. All API types, OAuth config, and fetch functions. `LOCAL_TZ` is a module-level constant used by both calendar history fetch functions. Exports: `provider`, `getToken`, `fetchEnergySites`, `fetchLiveStatus`, `fetchSiteInfo`, `fetchEnergyHistory`, `fetchSelfConsumption`.
 
-**`src/view-solar-production.tsx`** — `Detail` view command showing historical energy charts and totals. Period dropdown (Today / Past 7 Days / Past 30 Days / Past Year) via ActionPanel. Renders 4 SVG charts (Solar, Home, Powerwall, Grid) as base64 data URIs in the markdown pane; energy totals in the metadata sidebar. Uses `fetchEnergySites` + `fetchEnergyHistory`. Utility modules: `src/utils/energyCalc.ts` (date ranges, aggregation, chart series), `src/utils/svgChart.ts` (areaChart for day view, barChart/biChart for other periods).
+**`src/view-solar-production.tsx`** — `Detail` view command. Period switcher (Today / Past 7 Days / Past 30 Days / Past Year) via ActionPanel. Renders 4 SVG charts (Solar, Home, Powerwall, Grid) as data URIs in the markdown pane; energy totals and self-consumption percentages in the metadata sidebar. Site ID is cached in a `useRef` so `fetchEnergySites` is only called once per mount, not on every period switch. `siteInfo` is cached in state (fetched once, reused).
 
-**`src/menu-bar-status.tsx`** — `MenuBarExtra` command polling every 10 minutes. Shows live solar wattage in the menu bar title. The only command using `fetchLiveStatus`.
+**`src/menu-bar-status.tsx`** — `MenuBarExtra` command, auto-refreshes every 10 minutes. Shows live solar wattage in the menu bar title. Uses `useCachedPromise` with `keepPreviousData`; token is passed as a typed argument (not captured by closure) to avoid stale-closure issues on token refresh.
+
+**`src/utils/energyCalc.ts`** — Pure TypeScript, no Raycast imports. Exports: `Period` type, `getDateRange`, `formatEnergy`, `formatPower`, `aggregateByDay`, `filterFutureEntries`, aggregation helpers (`totalSolarGenerated` etc.), and chart series extractors (`solarPoints` etc.). Tesla returns sub-hourly data even for week/month periods — always call `aggregateByDay` before charting those periods.
+
+**`src/utils/svgChart.ts`** — SVG chart generators returning data URIs (`encodeURIComponent`, not base64). `areaChart` for day-view Solar/Home; `barChart` for multi-period Solar/Home; `biChart` for Powerwall and Grid (bidirectional). All three accept `xLabels` and `peakLabel` options.
 
 ### OAuth Flow
 
-Authentication uses Raycast's PKCE proxy (`oauth.raycast.com`) as middleware between the extension and Tesla's OAuth server. The proxied `authorizeUrl`, `tokenUrl`, and `refreshTokenUrl` in `tesla.ts` are pre-configured. All commands are wrapped with `withAccessToken(provider)` from `@raycast/utils`.
-
-The required OAuth scope is `energy_device_data` — this covers all read operations (solar, Powerwall, grid, history).
+Raycast's PKCE proxy (`oauth.raycast.com`) sits between the extension and Tesla's OAuth server. The proxied `authorizeUrl`, `tokenUrl`, and `refreshTokenUrl` are hardcoded in `tesla.ts`. All commands wrap their export with `withAccessToken(provider)` from `@raycast/utils`. Required scope: `energy_device_data`.
 
 ### Tesla Fleet API
 
 - **Base URL (NA):** `https://fleet-api.prd.na.vn.cloud.tesla.com`
-- Entry point: `GET /api/1/products` → returns all products, filtered by presence of `energy_site_id`
-- Live data: `GET /api/1/energy_sites/{id}/live_status` — used only by `menu-bar-status`
-- History: `GET /api/1/energy_sites/{id}/calendar_history?kind=energy` — used by `view-solar-production`
+- `GET /api/1/products` — entry point, filtered by `energy_site_id`
+- `GET /api/1/energy_sites/{id}/live_status` — used by `menu-bar-status` only
+- `GET /api/1/energy_sites/{id}/site_info` — Powerwall count, timezone, components
+- `GET /api/1/energy_sites/{id}/calendar_history?kind=energy` — historical data, used by `view-solar-production`
+- `GET /api/1/energy_sites/{id}/calendar_history?kind=self_consumption` — returns `{ solar: %, battery: % }` aggregate per period
 
 All commands use `sites[0]` — multi-site support is not implemented.
 
 ### Logging
 
-Uses `@chrismessina/raycast-logger` with redaction enabled. The `Logger` instance in `tesla.ts` is the only logger. Users can enable verbose logging via the extension preference `verboseLogging`.
+Uses `@chrismessina/raycast-logger` with redaction enabled. The `Logger` instance in `tesla.ts` is the only logger. JWT claims (aud, iss, scope, exp) are logged once on first token use. Verbose logging can be enabled via the extension preference `verboseLogging`.
 
 ## Tesla Developer Setup
 
-See `SETUP.md` for the full procedure to register a Tesla Fleet API application, generate EC keys, host the public key, complete partner registration (required to avoid `412` errors), and configure the Raycast PKCE proxy.
+See `.github/docs/SETUP.md` for the full procedure: registering a Tesla Fleet API application, generating EC keys, hosting the public key via GitHub Pages, completing partner registration (required to avoid `412 Precondition Failed`), and configuring the Raycast PKCE proxy.

@@ -102,8 +102,8 @@ In the repo: **Settings → Pages → Source: Deploy from branch `main` / `/ (ro
 
 At your domain registrar, add:
 
-| Type | Name | Value |
-|------|------|-------|
+| Type    | Name        | Value                |
+| ------- | ----------- | -------------------- |
 | `CNAME` | `tesla-api` | `youruser.github.io` |
 
 Wait for DNS propagation (typically 5–30 minutes). Verify with:
@@ -223,12 +223,12 @@ Raycast extension
 
 ## API Reference
 
-| Endpoint | Description |
-|----------|-------------|
-| `GET /api/1/products` | List all Tesla products — use to find `energy_site_id` |
-| `GET /api/1/energy_sites/{id}/live_status` | Real-time solar, Powerwall, grid data |
-| `GET /api/1/energy_sites/{id}/site_info` | Site configuration and capabilities |
-| `GET /api/1/energy_sites/{id}/calendar_history?kind=energy` | Historical energy data |
+| Endpoint                                                    | Description                                            |
+| ----------------------------------------------------------- | ------------------------------------------------------ |
+| `GET /api/1/products`                                       | List all Tesla products — use to find `energy_site_id` |
+| `GET /api/1/energy_sites/{id}/live_status`                  | Real-time solar, Powerwall, grid data                  |
+| `GET /api/1/energy_sites/{id}/site_info`                    | Site configuration and capabilities                    |
+| `GET /api/1/energy_sites/{id}/calendar_history?kind=energy` | Historical energy data                                 |
 
 **Base URL (North America):** `https://fleet-api.prd.na.vn.cloud.tesla.com`
 
@@ -240,10 +240,10 @@ Raycast extension
 
 ## Troubleshooting
 
-| Error | Cause | Fix |
-|-------|-------|-----|
-| `redirect_uri not registered` | Mismatch between Tesla app and what Raycast sends | Use Raycast PKCE proxy; register `https://oauth.raycast.com/redirect` |
-| `412 Precondition Failed` | App not registered in region | Complete Part 4 (partner registration) |
-| `403` / `partner_not_registered` | Same as 412 | Complete Part 4 |
-| Key not serving | Jekyll blocking `.well-known` | Add `.nojekyll` empty file to repo root |
-| DNS not resolving | CNAME not propagated | Wait 5–30 min; verify with `dig` |
+| Error                            | Cause                                             | Fix                                                                   |
+| -------------------------------- | ------------------------------------------------- | --------------------------------------------------------------------- |
+| `redirect_uri not registered`    | Mismatch between Tesla app and what Raycast sends | Use Raycast PKCE proxy; register `https://oauth.raycast.com/redirect` |
+| `412 Precondition Failed`        | App not registered in region                      | Complete Part 4 (partner registration)                                |
+| `403` / `partner_not_registered` | Same as 412                                       | Complete Part 4                                                       |
+| Key not serving                  | Jekyll blocking `.well-known`                     | Add `.nojekyll` empty file to repo root                               |
+| DNS not resolving                | CNAME not propagated                              | Wait 5–30 min; verify with `dig`                                      |
