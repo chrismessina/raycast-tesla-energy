@@ -17,12 +17,12 @@ function Command() {
     isLoading,
     revalidate,
   } = useCachedPromise(
-    async () => {
-      const sites = await fetchEnergySites(token);
+    async (t: string) => {
+      const sites = await fetchEnergySites(t);
       if (sites.length === 0) return null;
-      return fetchLiveStatus(token, sites[0].energy_site_id);
+      return fetchLiveStatus(t, sites[0].energy_site_id);
     },
-    [],
+    [token],
     { keepPreviousData: true },
   );
 
