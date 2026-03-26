@@ -67,11 +67,17 @@ _Completed 2026-03-25_
 
 **Conclusion:** Vehicle charging data is **not** available under `energy_device_data` scope. Adding a vehicle chart would require scope expansion (a separate OAuth scope). The pre-computed `total_*` fields could simplify aggregation math but are not needed given our existing helpers.
 
+**Wall Connector investigation (2026-03-26):**
+- `telemetry_history?kind=charge` → `{ charge_history: null }` — Wall Connector telemetry not available via energy site API even when a Wall Connector is installed
+- `calendar_history?kind=charge` → 400 "kind not supported"
+- `calendar_history?kind=self_consumption` → **200**, returns `{ time_series: [{ timestamp, solar: %, battery: % }] }` — solar/battery self-consumption percentages (useful but not vehicle-specific)
+- Stacked Home/Vehicle chart (like NetZero) not feasible without `vehicle_device_data` scope + per-session timestamp correlation
+
 ---
 
 ## Future Work
 
-- [ ] **Vehicle charging chart** — requires scope expansion beyond `energy_device_data`; not available in current API response
+- [ ] **Vehicle charging chart** — requires `vehicle_device_data` scope + per-session timestamp correlation against `energy_history`; Wall Connector `telemetry_history` returns null even when installed; stacked Home/Vehicle bar chart (NetZero style) not feasible without this scope
 - [ ] **Generator support** — `generator_*` fields are present in the API response; could add generator chart panel if user has a generator
 - [ ] **Grid services chart** — `grid_services_energy_imported/exported` fields present; relevant for users enrolled in demand response programs
 - [ ] **Caching / request deduplication** — all commands make independent API calls on init; revisit when adding new commands or if rate limiting becomes an issue
