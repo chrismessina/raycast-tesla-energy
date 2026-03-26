@@ -215,9 +215,12 @@ export async function fetchEnergyHistory(
   endDate: string,
 ): Promise<EnergyHistoryEntry[]> {
   log.step(1, "Fetching energy history", { siteId, period, startDate, endDate });
+  // Always request day-granularity from the API regardless of the display period.
+  // Tesla's `period` param controls bucket size, not the date window — passing "week"
+  // or "month" returns fewer, coarser buckets. We aggregate ourselves via aggregateByDay.
   const params = new URLSearchParams({
     kind: "energy",
-    period,
+    period: "day",
     start_date: startDate,
     end_date: endDate,
     time_zone: LOCAL_TZ,
