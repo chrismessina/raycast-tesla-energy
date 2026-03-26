@@ -19,12 +19,7 @@ Live solar wattage in the menu bar, refreshed every 10 minutes.
 - Shows current production, Powerwall charge level, grid status, and home consumption
 - Displays `—` when solar production is below 50 W (nighttime / minimal production)
 
-## Setup
-
-This extension requires a Tesla Fleet API application and OAuth credentials configured via the Raycast PKCE proxy. See `.github/docs/SETUP.md` for the full procedure.
-
 ## Requirements
 
 - Tesla account with solar panels and/or Powerwalls
-- Tesla Fleet API client registered with `energy_device_data` scope
-- Raycast PKCE proxy configured with your Tesla OAuth credentials
+- Raycast will prompt you to connect your Tesla account on first use
