@@ -4,29 +4,32 @@ export type Period = "day" | "week" | "month" | "year";
 
 export function getDateRange(period: Period): { startDate: string; endDate: string } {
   const now = new Date();
-  const end = now.toISOString();
-  let start: Date;
 
   switch (period) {
-    case "day":
-      start = new Date(now);
+    case "day": {
+      const start = new Date(now);
       start.setHours(0, 0, 0, 0);
-      break;
-    case "week":
-      start = new Date(now);
-      start.setDate(start.getDate() - 7);
-      break;
-    case "month":
-      start = new Date(now);
-      start.setDate(start.getDate() - 30);
-      break;
-    case "year":
-      start = new Date(now);
-      start.setFullYear(start.getFullYear() - 1);
-      break;
+      return { startDate: start.toISOString(), endDate: now.toISOString() };
+    }
+    case "week": {
+      // Start of current week (Monday)
+      const start = new Date(now);
+      const day = start.getDay(); // 0=Sun, 1=Mon, ...
+      start.setDate(start.getDate() - ((day + 6) % 7));
+      start.setHours(0, 0, 0, 0);
+      return { startDate: start.toISOString(), endDate: now.toISOString() };
+    }
+    case "month": {
+      // Start of current month
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      return { startDate: start.toISOString(), endDate: now.toISOString() };
+    }
+    case "year": {
+      // Start of current year
+      const start = new Date(now.getFullYear(), 0, 1);
+      return { startDate: start.toISOString(), endDate: now.toISOString() };
+    }
   }
-
-  return { startDate: start.toISOString(), endDate: end };
 }
 
 export function formatEnergy(wh: number): string {
@@ -126,41 +129,112 @@ export function gridPoints(entries: EnergyHistoryEntry[]): number[] {
   );
 }
 
-/**
- * Aggregates sub-hourly or hourly entries into daily buckets.
- * Used for week/month period views where Tesla returns fine-grained data.
- * The bucket key is the local date string (YYYY-MM-DD) derived from the timestamp.
- */
-export function aggregateByDay(entries: EnergyHistoryEntry[]): EnergyHistoryEntry[] {
-  const buckets = new Map<string, EnergyHistoryEntry>();
-  for (const e of entries) {
-    const key = e.timestamp.slice(0, 10); // "YYYY-MM-DD"
-    const existing = buckets.get(key);
-    if (!existing) {
-      buckets.set(key, { ...e });
-    } else {
-      existing.solar_energy_exported += e.solar_energy_exported;
-      existing.grid_energy_imported += e.grid_energy_imported;
-      existing.grid_energy_exported_from_solar += e.grid_energy_exported_from_solar;
-      existing.grid_energy_exported_from_battery += e.grid_energy_exported_from_battery;
-      existing.battery_energy_exported += e.battery_energy_exported;
-      existing.battery_energy_imported_from_grid += e.battery_energy_imported_from_grid;
-      existing.battery_energy_imported_from_solar += e.battery_energy_imported_from_solar;
-      existing.consumer_energy_imported_from_grid += e.consumer_energy_imported_from_grid;
-      existing.consumer_energy_imported_from_solar += e.consumer_energy_imported_from_solar;
-      existing.consumer_energy_imported_from_battery += e.consumer_energy_imported_from_battery;
-    }
-  }
-  return Array.from(buckets.values());
+// --- Fixed-canvas aggregators ---
+// These produce fixed-length arrays aligned to the calendar period, zero-padding
+// slots with no data. This gives charts predictable x-axes regardless of when
+// they're viewed.
+
+function emptyEntry(): EnergyHistoryEntry {
+  return {
+    timestamp: "",
+    solar_energy_exported: 0,
+    grid_energy_imported: 0,
+    grid_energy_exported_from_solar: 0,
+    grid_energy_exported_from_battery: 0,
+    battery_energy_exported: 0,
+    battery_energy_imported_from_grid: 0,
+    battery_energy_imported_from_solar: 0,
+    consumer_energy_imported_from_grid: 0,
+    consumer_energy_imported_from_solar: 0,
+    consumer_energy_imported_from_battery: 0,
+  };
+}
+
+function sumInto(target: EnergyHistoryEntry, e: EnergyHistoryEntry): void {
+  target.solar_energy_exported += e.solar_energy_exported;
+  target.grid_energy_imported += e.grid_energy_imported;
+  target.grid_energy_exported_from_solar += e.grid_energy_exported_from_solar;
+  target.grid_energy_exported_from_battery += e.grid_energy_exported_from_battery;
+  target.battery_energy_exported += e.battery_energy_exported;
+  target.battery_energy_imported_from_grid += e.battery_energy_imported_from_grid;
+  target.battery_energy_imported_from_solar += e.battery_energy_imported_from_solar;
+  target.consumer_energy_imported_from_grid += e.consumer_energy_imported_from_grid;
+  target.consumer_energy_imported_from_solar += e.consumer_energy_imported_from_solar;
+  target.consumer_energy_imported_from_battery += e.consumer_energy_imported_from_battery;
 }
 
 /**
- * Filters out entries with future timestamps.
- * The Tesla API returns monthly buckets for the full upcoming year in "year" period queries,
- * resulting in all-zero entries for months that haven't occurred yet.
- * Apply this before passing year-period data to chart functions.
+ * Produces exactly 7 entries (Mon–Sun of the current week).
+ * Days with no API data are zero-padded.
+ * Returns x-labels as single-letter day abbreviations: M T W T F S S
  */
-export function filterFutureEntries(entries: EnergyHistoryEntry[]): EnergyHistoryEntry[] {
+export function aggregateToWeek(entries: EnergyHistoryEntry[]): { buckets: EnergyHistoryEntry[]; xLabels: string[] } {
   const now = new Date();
-  return entries.filter((e) => new Date(e.timestamp) <= now);
+  const todayDay = now.getDay(); // 0=Sun
+  const monday = new Date(now);
+  monday.setDate(monday.getDate() - ((todayDay + 6) % 7));
+  monday.setHours(0, 0, 0, 0);
+
+  const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
+  const buckets: EnergyHistoryEntry[] = Array.from({ length: 7 }, emptyEntry);
+
+  for (const e of entries) {
+    const d = new Date(e.timestamp);
+    const diffDays = Math.floor((d.getTime() - monday.getTime()) / 86_400_000);
+    if (diffDays >= 0 && diffDays < 7) {
+      sumInto(buckets[diffDays], e);
+    }
+  }
+
+  return { buckets, xLabels: DAY_LABELS };
+}
+
+/**
+ * Produces one entry per day of the current month (28–31 slots).
+ * Days with no API data are zero-padded.
+ * Returns x-labels as day-of-month numbers, shown sparsely (1, 8, 15, 22, last).
+ */
+export function aggregateToMonth(entries: EnergyHistoryEntry[]): { buckets: EnergyHistoryEntry[]; xLabels: string[] } {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const buckets: EnergyHistoryEntry[] = Array.from({ length: daysInMonth }, emptyEntry);
+
+  for (const e of entries) {
+    const d = new Date(e.timestamp);
+    if (d.getFullYear() === year && d.getMonth() === month) {
+      const idx = d.getDate() - 1; // 0-indexed
+      sumInto(buckets[idx], e);
+    }
+  }
+
+  // Sparse labels: show day number only at index 0, 7, 14, 21, and last day
+  const xLabels = buckets.map((_, i) => {
+    if (i === 0 || i === 6 || i === 13 || i === 20 || i === daysInMonth - 1) return String(i + 1);
+    return "";
+  });
+
+  return { buckets, xLabels };
+}
+
+/**
+ * Produces exactly 12 entries (Jan–Dec of the current year).
+ * Future months are zero-padded.
+ * Returns x-labels as single-letter month abbreviations: J F M A M J J A S O N D
+ */
+export function aggregateToYear(entries: EnergyHistoryEntry[]): { buckets: EnergyHistoryEntry[]; xLabels: string[] } {
+  const year = new Date().getFullYear();
+  const MONTH_LABELS = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
+  const buckets: EnergyHistoryEntry[] = Array.from({ length: 12 }, emptyEntry);
+
+  for (const e of entries) {
+    const d = new Date(e.timestamp);
+    if (d.getFullYear() === year) {
+      sumInto(buckets[d.getMonth()], e);
+    }
+  }
+
+  return { buckets, xLabels: MONTH_LABELS };
 }

@@ -215,9 +215,11 @@ export async function fetchEnergyHistory(
   endDate: string,
 ): Promise<EnergyHistoryEntry[]> {
   log.step(1, "Fetching energy history", { siteId, period, startDate, endDate });
+  // Map display period to API granularity: year uses monthly buckets, others use daily.
+  const apiPeriod = period === "year" ? "month" : "week";
   const params = new URLSearchParams({
     kind: "energy",
-    period,
+    period: apiPeriod,
     start_date: startDate,
     end_date: endDate,
     time_zone: LOCAL_TZ,
@@ -226,11 +228,6 @@ export async function fetchEnergyHistory(
     `/api/1/energy_sites/${siteId}/calendar_history?${params}`,
     token,
   );
-  log.info("Energy history loaded", {
-    entries: data.time_series.length,
-    period,
-    firstTimestamp: data.time_series[0]?.timestamp,
-    lastTimestamp: data.time_series[data.time_series.length - 1]?.timestamp,
-  });
+  log.info("Energy history loaded", { entries: data.time_series.length, period });
   return data.time_series;
 }

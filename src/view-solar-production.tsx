@@ -16,8 +16,9 @@ import {
   Period,
   getDateRange,
   formatEnergy,
-  filterFutureEntries,
-  aggregateByDay,
+  aggregateToWeek,
+  aggregateToMonth,
+  aggregateToYear,
   totalSolarGenerated,
   totalHomeUsed,
   totalBatteryDischarged,
@@ -41,23 +42,14 @@ function resolveColor(isDark: boolean, dark: string, light: string): string {
   return isDark ? dark : light;
 }
 
-function xLabelsForEntries(entries: EnergyHistoryEntry[], period: Period): string[] {
-  return entries.map((e) => {
-    const d = new Date(e.timestamp);
-    if (period === "day") {
-      return d.toLocaleTimeString(undefined, { hour: "numeric" });
-    }
-    if (period === "week" || period === "month") {
-      return String(d.getDate()); // day-of-month number
-    }
-    return d.toLocaleDateString(undefined, { month: "short" });
-  });
-}
-
 function peakKwh(values: number[]): string {
   const max = Math.max(...values, 0);
   if (max === 0) return "";
   return formatEnergy(max);
+}
+
+function xLabelsForDay(entries: EnergyHistoryEntry[]): string[] {
+  return entries.map((e) => new Date(e.timestamp).toLocaleTimeString(undefined, { hour: "numeric" }));
 }
 
 function buildCharts(entries: EnergyHistoryEntry[], period: Period): string {
@@ -65,14 +57,6 @@ function buildCharts(entries: EnergyHistoryEntry[], period: Period): string {
   const gridlineColor = isDark ? "#555555" : "#AAAAAA";
   const labelColor = isDark ? "#CCCCCC" : "#555555";
   const opts = { width: 500, height: 134, gridlineColor, labelColor };
-
-  const chartEntries = period === "week" || period === "month" ? aggregateByDay(entries) : entries;
-
-  const solar = solarPoints(chartEntries);
-  const home = homePoints(chartEntries);
-  const battery = batteryPoints(chartEntries);
-  const grid = gridPoints(chartEntries);
-  const xLabels = xLabelsForEntries(chartEntries, period);
 
   const solarColor = resolveColor(isDark, "#C9A227", "#B8860B");
   const homeColor = resolveColor(isDark, "#7B68EE", "#6A5ACD");
@@ -82,6 +66,11 @@ function buildCharts(entries: EnergyHistoryEntry[], period: Period): string {
   const gridNeg = resolveColor(isDark, "#5AC8FA", "#007AFF");
 
   if (period === "day") {
+    const xLabels = xLabelsForDay(entries);
+    const solar = solarPoints(entries);
+    const home = homePoints(entries);
+    const battery = batteryPoints(entries);
+    const grid = gridPoints(entries);
     return [
       `### Solar\n\n![Solar](${areaChart(solar, solarColor, { ...opts, xLabels, peakLabel: peakKwh(solar) })})`,
       `### Home\n\n![Home](${areaChart(home, homeColor, { ...opts, xLabels, peakLabel: peakKwh(home) })})`,
@@ -89,6 +78,18 @@ function buildCharts(entries: EnergyHistoryEntry[], period: Period): string {
       `### Grid\n\n![Grid](${biChart(grid, gridPos, gridNeg, { ...opts, xLabels, peakLabel: peakKwh(grid.map(Math.abs)) })})`,
     ].join("\n\n");
   }
+
+  const { buckets, xLabels } =
+    period === "week"
+      ? aggregateToWeek(entries)
+      : period === "month"
+        ? aggregateToMonth(entries)
+        : aggregateToYear(entries);
+
+  const solar = solarPoints(buckets);
+  const home = homePoints(buckets);
+  const battery = batteryPoints(buckets);
+  const grid = gridPoints(buckets);
 
   return [
     `### Solar\n\n![Solar](${barChart(solar, solarColor, { ...opts, xLabels, peakLabel: peakKwh(solar) })})`,
@@ -141,12 +142,7 @@ function Command() {
         fetchSelfConsumption(token, siteId, p, startDate, endDate),
       ]);
 
-      let data = historyData;
-      if (p === "year") {
-        data = filterFutureEntries(data);
-      }
-
-      setEntries(data);
+      setEntries(historyData);
       setSelfConsumption(sc);
       if (siteInfo === null) setSiteInfo(info);
     } catch (e) {
