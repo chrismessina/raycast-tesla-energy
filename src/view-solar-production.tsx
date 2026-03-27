@@ -74,8 +74,8 @@ function buildCharts(entries: EnergyHistoryEntry[], period: Period): string {
     return [
       `### Solar\n\n![Solar](${areaChart(solar, solarColor, { ...opts, xLabels, peakLabel: peakKwh(solar) })})`,
       `### Home\n\n![Home](${areaChart(home, homeColor, { ...opts, xLabels, peakLabel: peakKwh(home) })})`,
-      `### Powerwall\n\n![Powerwall](${biChart(battery, batteryPos, batteryNeg, { ...opts, xLabels, peakLabel: peakKwh(battery.map(Math.abs)) })})`,
-      `### Grid\n\n![Grid](${biChart(grid, gridPos, gridNeg, { ...opts, xLabels, peakLabel: peakKwh(grid.map(Math.abs)) })})`,
+      `### Powerwall\n\n![Powerwall](${biChart(battery, batteryPos, batteryNeg, { ...opts, peakLabel: peakKwh(battery.map(Math.abs)) })})`,
+      `### Grid\n\n![Grid](${biChart(grid, gridPos, gridNeg, { ...opts, peakLabel: peakKwh(grid.map(Math.abs)) })})`,
     ].join("\n\n");
   }
 
