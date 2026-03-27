@@ -240,15 +240,14 @@ export function biChart(
     }
   }
 
-  const baselineY = topPad + chartHeight;
   const peakEl = peakLabel
     ? `  <text x="${width - 2}" y="${PEAK_LABEL_HEIGHT - 1}" font-size="9" fill="${escSvg(labelColor)}" text-anchor="end" font-family="sans-serif">${escSvg(peakLabel)}</text>`
     : "";
 
   const svg = [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${totalHeight}">`,
-    `  <line x1="0" y1="${midY}" x2="${width}" y2="${midY}" stroke="${escSvg(gridlineColor)}" stroke-width="1" opacity="0.6"/>`,
-    `  <line x1="0" y1="${baselineY}" x2="${width}" y2="${baselineY}" stroke="${escSvg(labelColor)}" stroke-width="1" opacity="0.4"/>`,
+    // Zero axis at midY acts as both the gridline and the x-axis baseline
+    `  <line x1="0" y1="${midY}" x2="${width}" y2="${midY}" stroke="${escSvg(labelColor)}" stroke-width="1" opacity="0.4"/>`,
     bars,
     peakEl,
     ...labelEls,
