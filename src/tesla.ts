@@ -215,13 +215,10 @@ export async function fetchEnergyHistory(
   endDate: string,
 ): Promise<EnergyHistoryEntry[]> {
   log.step(1, "Fetching energy history", { siteId, period, startDate, endDate });
-  // Map display period to API granularity:
-  // - day → "day" (sub-hourly data for today's area chart)
-  // - week → "week" (daily-granularity data for the current calendar week)
-  // - month → "month" (daily-granularity data for the current calendar month)
-  // - year → "month" (monthly buckets for the current year)
-  // Tesla's period param controls both bucket size and date scope — it must match.
-  const apiPeriod = period === "day" ? "day" : period === "week" ? "week" : "month";
+  // Tesla's period param controls both bucket size AND date scope — it must match
+  // the display period exactly. Each value returns data for the current calendar
+  // period at the appropriate granularity (day=sub-hourly, week=daily, month=daily, year=monthly).
+  const apiPeriod = period;
   const params = new URLSearchParams({
     kind: "energy",
     period: apiPeriod,

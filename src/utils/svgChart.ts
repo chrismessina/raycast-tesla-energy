@@ -137,15 +137,18 @@ export function barChart(values: number[], color: string, options: ChartOptions 
     return toDataUri(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${totalHeight}"/>`);
   }
 
-  const gap = width / n;
-  const barW = Math.max(1, Math.floor(gap * 0.85));
+  // Compute slot boundaries from integer pixel positions to ensure uniform bar widths.
+  const slotLeft = (i: number) => Math.round((i / n) * width);
+  const slotRight = (i: number) => Math.round(((i + 1) / n) * width);
+  const slotW = slotRight(0) - slotLeft(0);
+  const barW = Math.max(1, Math.floor(slotW * 0.85));
   const midY = topPad + chartHeight / 2;
 
   const bars = values
     .map((v, i) => {
       if (v <= 0) return "";
       const barH = Math.max(1, (v / max) * (chartHeight - 4));
-      const x = Math.round(i * gap + (gap - barW) / 2);
+      const x = slotLeft(i) + Math.floor((slotW - barW) / 2);
       const y = topPad + chartHeight - barH;
       return `  <rect x="${x}" y="${y}" width="${barW}" height="${barH}" fill="${escSvg(color)}" rx="2"/>`;
     })
@@ -156,7 +159,7 @@ export function barChart(values: number[], color: string, options: ChartOptions 
     const indices = pickLabelIndices(n, 7);
     for (const idx of indices) {
       if (xLabels[idx]) {
-        const lx = Math.round(idx * gap + gap / 2);
+        const lx = Math.round(slotLeft(idx) + slotW / 2);
         const anchor = idx === 0 ? "start" : idx === n - 1 ? "end" : "middle";
         labelEls.push(
           `  <text x="${lx}" y="${totalHeight - 2}" font-size="9" fill="${escSvg(labelColor)}" text-anchor="${anchor}" font-family="sans-serif">${escSvg(xLabels[idx])}</text>`,
@@ -206,14 +209,16 @@ export function biChart(
     return toDataUri(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${totalHeight}"/>`);
   }
 
-  const gap = width / n;
-  const barW = Math.max(1, Math.floor(gap * 0.85));
+  const slotLeft = (i: number) => Math.round((i / n) * width);
+  const slotRight = (i: number) => Math.round(((i + 1) / n) * width);
+  const slotW = slotRight(0) - slotLeft(0);
+  const barW = Math.max(1, Math.floor(slotW * 0.85));
 
   const bars = values
     .map((v, i) => {
       if (v === 0) return "";
       const barH = Math.max(1, (Math.abs(v) / absMax) * (chartHeight / 2 - 2));
-      const x = Math.round(i * gap + (gap - barW) / 2);
+      const x = slotLeft(i) + Math.floor((slotW - barW) / 2);
       const barColor = v > 0 ? positiveColor : negativeColor;
       const y = v > 0 ? midY - barH : midY;
       return `  <rect x="${x}" y="${y}" width="${barW}" height="${barH}" fill="${escSvg(barColor)}" rx="2"/>`;
@@ -225,7 +230,7 @@ export function biChart(
     const indices = pickLabelIndices(n, 7);
     for (const idx of indices) {
       if (xLabels[idx]) {
-        const lx = Math.round(idx * gap + gap / 2);
+        const lx = Math.round(slotLeft(idx) + slotW / 2);
         const anchor = idx === 0 ? "start" : idx === n - 1 ? "end" : "middle";
         labelEls.push(
           `  <text x="${lx}" y="${totalHeight - 2}" font-size="9" fill="${escSvg(labelColor)}" text-anchor="${anchor}" font-family="sans-serif">${escSvg(xLabels[idx])}</text>`,
