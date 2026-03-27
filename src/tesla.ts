@@ -215,8 +215,11 @@ export async function fetchEnergyHistory(
   endDate: string,
 ): Promise<EnergyHistoryEntry[]> {
   log.step(1, "Fetching energy history", { siteId, period, startDate, endDate });
-  // Map display period to API granularity: year uses monthly buckets, others use daily.
-  const apiPeriod = period === "year" ? "month" : "week";
+  // Map display period to API granularity:
+  // - day → "day" for sub-hourly data needed by the area chart
+  // - week/month → "week" for daily-granularity data across the period
+  // - year → "month" for monthly buckets across the year
+  const apiPeriod = period === "year" ? "month" : period === "day" ? "day" : "week";
   const params = new URLSearchParams({
     kind: "energy",
     period: apiPeriod,
