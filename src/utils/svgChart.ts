@@ -156,8 +156,8 @@ export function barChart(values: number[], color: string, options: ChartOptions 
 
   const labelEls: string[] = [];
   if (hasLabels) {
-    const indices = pickLabelIndices(n, 7);
-    for (const idx of indices) {
+    // Render every non-empty label from the caller's array — callers pre-sparse the array.
+    for (let idx = 0; idx < n; idx++) {
       if (xLabels[idx]) {
         const lx = Math.round(slotLeft(idx) + slotW / 2);
         const anchor = idx === 0 ? "start" : idx === n - 1 ? "end" : "middle";
@@ -168,6 +168,7 @@ export function barChart(values: number[], color: string, options: ChartOptions 
     }
   }
 
+  const baselineY = topPad + chartHeight;
   const peakEl = peakLabel
     ? `  <text x="${width - 2}" y="${PEAK_LABEL_HEIGHT - 1}" font-size="9" fill="${escSvg(labelColor)}" text-anchor="end" font-family="sans-serif">${escSvg(peakLabel)}</text>`
     : "";
@@ -175,6 +176,7 @@ export function barChart(values: number[], color: string, options: ChartOptions 
   const svg = [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${totalHeight}">`,
     `  <line x1="0" y1="${midY}" x2="${width}" y2="${midY}" stroke="${escSvg(gridlineColor)}" stroke-width="1" stroke-dasharray="4,4" opacity="0.4"/>`,
+    `  <line x1="0" y1="${baselineY}" x2="${width}" y2="${baselineY}" stroke="${escSvg(labelColor)}" stroke-width="1" opacity="0.4"/>`,
     bars,
     peakEl,
     ...labelEls,
@@ -227,8 +229,7 @@ export function biChart(
 
   const labelEls: string[] = [];
   if (hasLabels) {
-    const indices = pickLabelIndices(n, 7);
-    for (const idx of indices) {
+    for (let idx = 0; idx < n; idx++) {
       if (xLabels[idx]) {
         const lx = Math.round(slotLeft(idx) + slotW / 2);
         const anchor = idx === 0 ? "start" : idx === n - 1 ? "end" : "middle";
@@ -239,6 +240,7 @@ export function biChart(
     }
   }
 
+  const baselineY = topPad + chartHeight;
   const peakEl = peakLabel
     ? `  <text x="${width - 2}" y="${PEAK_LABEL_HEIGHT - 1}" font-size="9" fill="${escSvg(labelColor)}" text-anchor="end" font-family="sans-serif">${escSvg(peakLabel)}</text>`
     : "";
@@ -246,6 +248,7 @@ export function biChart(
   const svg = [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${totalHeight}">`,
     `  <line x1="0" y1="${midY}" x2="${width}" y2="${midY}" stroke="${escSvg(gridlineColor)}" stroke-width="1" opacity="0.6"/>`,
+    `  <line x1="0" y1="${baselineY}" x2="${width}" y2="${baselineY}" stroke="${escSvg(labelColor)}" stroke-width="1" opacity="0.4"/>`,
     bars,
     peakEl,
     ...labelEls,
