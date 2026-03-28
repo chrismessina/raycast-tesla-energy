@@ -2,8 +2,7 @@ import { Color, Icon, MenuBarExtra, openCommandPreferences, showHUD } from "@ray
 import { useCachedPromise, withAccessToken } from "@raycast/utils";
 import { provider, getToken, fetchEnergySites, fetchLiveStatus } from "./tesla";
 import { formatPower } from "./utils/energyCalc";
-
-const SUN_ICON = { source: Icon.Sun, tintColor: Color.Yellow };
+import { COLORS, ICONS } from "./utils/theme";
 
 function batteryTitle(batteryPower: number): string {
   if (batteryPower > 50) return `Discharging: ${formatPower(batteryPower)}`;
@@ -15,12 +14,6 @@ function gridTitle(gridPower: number): string {
   if (gridPower > 50) return `Importing: ${formatPower(gridPower)}`;
   if (gridPower < -50) return `Exporting: ${formatPower(Math.abs(gridPower))}`;
   return "Idle";
-}
-
-function gridTintColor(gridPower: number): Color {
-  if (gridPower > 50) return Color.Orange;
-  if (gridPower < -50) return Color.Green;
-  return Color.SecondaryText;
 }
 
 function Command() {
@@ -43,33 +36,62 @@ function Command() {
   const solarPower = status?.solar_power ?? 0;
   const isProducing = solarPower > 50;
   const title = isProducing ? formatPower(solarPower) : "—";
-  const icon = isProducing ? SUN_ICON : { source: Icon.Moon, tintColor: Color.SecondaryText };
+  const icon = isProducing
+    ? { source: ICONS.solar, tintColor: COLORS.solar.tint }
+    : { source: Icon.Moon, tintColor: Color.SecondaryText };
 
   return (
     <MenuBarExtra icon={icon} title={title} isLoading={isLoading}>
       {status && (
         <>
           <MenuBarExtra.Section title="Solar">
-            <MenuBarExtra.Item icon={SUN_ICON} title={`Production: ${formatPower(status.solar_power)}`} onAction={() => {}} />
+            <MenuBarExtra.Item
+              icon={{ source: ICONS.solar, tintColor: COLORS.solar.tint }}
+              title={`Production: ${formatPower(status.solar_power)}`}
+              onAction={() => {}}
+            />
           </MenuBarExtra.Section>
           <MenuBarExtra.Section title="Powerwall">
             <MenuBarExtra.Item
-              icon={{ source: Icon.Battery, tintColor: status.percentage_charged > 20 ? Color.Green : Color.Red }}
+              icon={{
+                source: ICONS.battery,
+                tintColor: status.percentage_charged > 20 ? COLORS.batteryPos.tint : Color.Red,
+              }}
               title={`Charge: ${Math.round(status.percentage_charged)}%`}
               onAction={() => {}}
             />
-            <MenuBarExtra.Item icon={Icon.BatteryCharging} title={batteryTitle(status.battery_power)} onAction={() => {}} />
+            <MenuBarExtra.Item
+              icon={{
+                source: status.battery_power < -50 ? ICONS.charging : ICONS.battery,
+                tintColor:
+                  status.battery_power > 50
+                    ? COLORS.batteryPos.tint
+                    : status.battery_power < -50
+                      ? COLORS.batteryNeg.tint
+                      : COLORS.gridPos.tint,
+              }}
+              title={batteryTitle(status.battery_power)}
+              onAction={() => {}}
+            />
           </MenuBarExtra.Section>
           <MenuBarExtra.Section title="Grid">
             <MenuBarExtra.Item
-              icon={{ source: Icon.Signal3, tintColor: gridTintColor(status.grid_power) }}
+              icon={{
+                source: ICONS.grid,
+                tintColor:
+                  status.grid_power > 50
+                    ? COLORS.gridPos.tint
+                    : status.grid_power < -50
+                      ? COLORS.gridNeg.tint
+                      : Color.SecondaryText,
+              }}
               title={gridTitle(status.grid_power)}
               onAction={() => {}}
             />
           </MenuBarExtra.Section>
           <MenuBarExtra.Section title="Home">
             <MenuBarExtra.Item
-              icon={{ source: Icon.House, tintColor: Color.Blue }}
+              icon={{ source: ICONS.home, tintColor: COLORS.home.tint }}
               title={`Consumption: ${formatPower(status.load_power)}`}
               onAction={() => {}}
             />

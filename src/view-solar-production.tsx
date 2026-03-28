@@ -1,7 +1,6 @@
 import {
   Action,
   ActionPanel,
-  Color,
   Detail,
   Icon,
   showToast,
@@ -43,6 +42,7 @@ import {
 } from "./utils/energyCalc";
 import { getCachedAiInsight, setCachedAiInsight } from "./tesla";
 import { areaChart, barChart, biAreaChart, biChart } from "./utils/svgChart";
+import { COLORS, ICONS } from "./utils/theme";
 
 const PERIOD_LABELS: Record<Period, string> = {
   day: "Today",
@@ -50,27 +50,6 @@ const PERIOD_LABELS: Record<Period, string> = {
   month: "This Month",
   year: "Year to Date",
 };
-
-// Chart hex colors (dark / light variants) and matching Raycast Color tints for sidebar icons.
-// Single source of truth — update here to change both charts and sidebar simultaneously.
-const COLORS = {
-  solar: { dark: "#C9A227", light: "#B8860B", tint: Color.Yellow },
-  home: { dark: "#7B68EE", light: "#6A5ACD", tint: Color.Purple },
-  batteryPos: { dark: "#30D158", light: "#248A3D", tint: Color.Green }, // discharging
-  batteryNeg: { dark: "#FF9F0A", light: "#C96D00", tint: Color.Orange }, // charging
-  gridPos: { dark: "#AEAEB2", light: "#8E8E93", tint: Color.SecondaryText }, // importing
-  gridNeg: { dark: "#5AC8FA", light: "#007AFF", tint: Color.Blue }, // exporting
-  selfPower: { tint: Color.Green },
-} as const;
-
-const ICONS = {
-  selfPower: Icon.Leaf,
-  solar: Icon.Sun,
-  home: Icon.House,
-  battery: Icon.Battery,
-  charging: Icon.BatteryCharging,
-  grid: Icon.Plug,
-} as const;
 
 function resolveColor(isDark: boolean, dark: string, light: string): string {
   return isDark ? dark : light;
@@ -348,7 +327,7 @@ function Command() {
                 source: ICONS.grid,
                 tintColor: gridNet < 0 ? COLORS.gridNeg.tint : COLORS.gridPos.tint,
               }}
-              text={formatEnergy(gridNet)}
+              text={formatEnergy(Math.abs(gridNet))}
             />
           </Detail.Metadata>
         ) : null

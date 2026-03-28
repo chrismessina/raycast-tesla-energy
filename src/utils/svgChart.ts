@@ -247,7 +247,7 @@ export function biAreaChart(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${totalHeight}">`,
     `  <defs>`,
     `    <clipPath id="clipAbove"><rect x="0" y="${topPad}" width="${width}" height="${midY - topPad}"/></clipPath>`,
-    `    <clipPath id="clipBelow"><rect x="0" y="${midY}" width="${width}" height="${chartHeight / 2}"/></clipPath>`,
+    `    <clipPath id="clipBelow"><rect x="0" y="${midY}" width="${width}" height="${topPad + chartHeight - midY}"/></clipPath>`,
     `  </defs>`,
     `  <line x1="0" y1="${midY}" x2="${width}" y2="${midY}" stroke="${escSvg(labelColor)}" stroke-width="1" opacity="0.4"/>`,
     `  <path d="${posFill}" fill="${escSvg(positiveColor)}" fill-opacity="${fillOpacity}"/>`,
