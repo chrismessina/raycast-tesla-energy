@@ -166,6 +166,7 @@ function powerwallLabel(siteInfo: SiteInfo | null): string {
 
 function Command() {
   const token = getToken();
+  const { showTodaySummary } = getPreferenceValues<Preferences>();
   const [entries, setEntries] = useState<EnergyHistoryEntry[]>([]);
   const [siteInfo, setSiteInfo] = useState<SiteInfo | null>(null);
   const [selfConsumption, setSelfConsumption] = useState<SelfConsumption | null>(null);
@@ -219,8 +220,11 @@ function Command() {
   }, [period]);
 
   useEffect(() => {
-    const { showTodaySummary } = getPreferenceValues<Preferences>();
-    if (!showTodaySummary || period !== "day" || entries.length === 0 || !environment.canAccess(AI)) return;
+    if (!showTodaySummary || period !== "day") {
+      setAiInsight(null);
+      return;
+    }
+    if (entries.length === 0 || !environment.canAccess(AI)) return;
 
     const today = new Date().toISOString().slice(0, 10);
     const cached = getCachedAiInsight(today);
@@ -251,7 +255,7 @@ function Command() {
     return () => {
       cancelled = true;
     };
-  }, [period, entries, selfConsumption]);
+  }, [showTodaySummary, period, entries, selfConsumption]);
 
   if (error) {
     return (
@@ -275,6 +279,7 @@ function Command() {
   const hasData = entries.length > 0;
   const periodLabel = PERIOD_LABELS[period];
   const pwLabel = powerwallLabel(siteInfo);
+  const gridNet = totalGridNet(entries);
   const insightBlock = period === "day" && aiInsight ? `_${aiInsight}_\n\n` : "";
   const chartsMarkdown = isLoading
     ? ""
@@ -338,12 +343,12 @@ function Command() {
             />
             <Detail.Metadata.Separator />
             <Detail.Metadata.Label
-              title={totalGridNet(entries) < 0 ? "Grid Net (exported)" : "Grid Net (imported)"}
+              title={gridNet < 0 ? "Grid Net (exported)" : "Grid Net (imported)"}
               icon={{
                 source: ICONS.grid,
-                tintColor: totalGridNet(entries) < 0 ? COLORS.gridNeg.tint : COLORS.gridPos.tint,
+                tintColor: gridNet < 0 ? COLORS.gridNeg.tint : COLORS.gridPos.tint,
               }}
-              text={formatEnergy(totalGridNet(entries))}
+              text={formatEnergy(gridNet)}
             />
           </Detail.Metadata>
         ) : null

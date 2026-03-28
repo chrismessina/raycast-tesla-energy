@@ -50,25 +50,28 @@ function Command() {
       {status && (
         <>
           <MenuBarExtra.Section title="Solar">
-            <MenuBarExtra.Item icon={SUN_ICON} title={`Production: ${formatPower(status.solar_power)}`} />
+            <MenuBarExtra.Item icon={SUN_ICON} title={`Production: ${formatPower(status.solar_power)}`} onAction={() => {}} />
           </MenuBarExtra.Section>
           <MenuBarExtra.Section title="Powerwall">
             <MenuBarExtra.Item
               icon={{ source: Icon.Battery, tintColor: status.percentage_charged > 20 ? Color.Green : Color.Red }}
               title={`Charge: ${Math.round(status.percentage_charged)}%`}
+              onAction={() => {}}
             />
-            <MenuBarExtra.Item icon={Icon.BatteryCharging} title={batteryTitle(status.battery_power)} />
+            <MenuBarExtra.Item icon={Icon.BatteryCharging} title={batteryTitle(status.battery_power)} onAction={() => {}} />
           </MenuBarExtra.Section>
           <MenuBarExtra.Section title="Grid">
             <MenuBarExtra.Item
               icon={{ source: Icon.Signal3, tintColor: gridTintColor(status.grid_power) }}
               title={gridTitle(status.grid_power)}
+              onAction={() => {}}
             />
           </MenuBarExtra.Section>
           <MenuBarExtra.Section title="Home">
             <MenuBarExtra.Item
               icon={{ source: Icon.House, tintColor: Color.Blue }}
               title={`Consumption: ${formatPower(status.load_power)}`}
+              onAction={() => {}}
             />
           </MenuBarExtra.Section>
           <MenuBarExtra.Section>

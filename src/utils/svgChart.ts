@@ -17,6 +17,19 @@ function escSvg(str: string): string {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
+function cubicBezierPath(pts: { x: number; y: number }[]): string {
+  if (pts.length === 0) return "";
+  let d = `M ${pts[0].x},${pts[0].y}`;
+  for (let i = 1; i < pts.length; i++) {
+    const cpx1 = pts[i - 1].x + (pts[i].x - pts[i - 1].x) / 3;
+    const cpy1 = pts[i - 1].y;
+    const cpx2 = pts[i].x - (pts[i].x - pts[i - 1].x) / 3;
+    const cpy2 = pts[i].y;
+    d += ` C ${cpx1},${cpy1} ${cpx2},${cpy2} ${pts[i].x},${pts[i].y}`;
+  }
+  return d;
+}
+
 function toDataUri(svg: string): string {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
@@ -76,15 +89,7 @@ export function areaChart(points: number[], color: string, options: ChartOptions
   const xs = points.map((_, i) => (i / (n - 1)) * width);
   const ys = points.map((v) => topPad + chartHeight - (v / max) * (chartHeight - 4));
 
-  let d = `M ${xs[0]},${ys[0]}`;
-  for (let i = 1; i < n; i++) {
-    const cpx1 = xs[i - 1] + (xs[i] - xs[i - 1]) / 3;
-    const cpy1 = ys[i - 1];
-    const cpx2 = xs[i] - (xs[i] - xs[i - 1]) / 3;
-    const cpy2 = ys[i];
-    d += ` C ${cpx1},${cpy1} ${cpx2},${cpy2} ${xs[i]},${ys[i]}`;
-  }
-
+  const d = cubicBezierPath(xs.map((x, i) => ({ x, y: ys[i] })));
   const fillPath = `${d} L ${xs[n - 1]},${topPad + chartHeight} L ${xs[0]},${topPad + chartHeight} Z`;
   const midY = topPad + chartHeight / 2;
 
@@ -212,36 +217,12 @@ export function biAreaChart(
   }
 
   const xs = values.map((_, i) => (i / Math.max(n - 1, 1)) * width);
-  // Map each value to a y coordinate relative to midY (positive up, negative down)
   const ys = values.map((v) => midY - (v / absMax) * (chartHeight / 2 - 2));
 
-  // Build a cubic bezier path through all points
-  function buildPath(pts: { x: number; y: number }[]): string {
-    if (pts.length === 0) return "";
-    let d = `M ${pts[0].x},${pts[0].y}`;
-    for (let i = 1; i < pts.length; i++) {
-      const cpx1 = pts[i - 1].x + (pts[i].x - pts[i - 1].x) / 3;
-      const cpy1 = pts[i - 1].y;
-      const cpx2 = pts[i].x - (pts[i].x - pts[i - 1].x) / 3;
-      const cpy2 = pts[i].y;
-      d += ` C ${cpx1},${cpy1} ${cpx2},${cpy2} ${pts[i].x},${pts[i].y}`;
-    }
-    return d;
-  }
-
-  const pts = xs.map((x, i) => ({ x, y: ys[i] }));
-  const linePath = buildPath(pts);
-
-  // Positive fill: clip values below midY to midY
-  const posYs = ys.map((y) => Math.min(y, midY));
-  const posPts = xs.map((x, i) => ({ x, y: posYs[i] }));
-  const posLine = buildPath(posPts);
+  const linePath = cubicBezierPath(xs.map((x, i) => ({ x, y: ys[i] })));
+  const posLine = cubicBezierPath(xs.map((x, i) => ({ x, y: Math.min(ys[i], midY) })));
   const posFill = `${posLine} L ${xs[n - 1]},${midY} L ${xs[0]},${midY} Z`;
-
-  // Negative fill: clip values above midY to midY
-  const negYs = ys.map((y) => Math.max(y, midY));
-  const negPts = xs.map((x, i) => ({ x, y: negYs[i] }));
-  const negLine = buildPath(negPts);
+  const negLine = cubicBezierPath(xs.map((x, i) => ({ x, y: Math.max(ys[i], midY) })));
   const negFill = `${negLine} L ${xs[n - 1]},${midY} L ${xs[0]},${midY} Z`;
 
   const labelEls: string[] = [];
@@ -262,22 +243,17 @@ export function biAreaChart(
     ? `  <text x="${width - 2}" y="${PEAK_LABEL_HEIGHT - 1}" font-size="9" fill="${escSvg(labelColor)}" text-anchor="end" font-family="sans-serif">${escSvg(peakLabel)}</text>`
     : "";
 
-  const clipAboveId = "clipAbove";
-  const clipBelowId = "clipBelow";
-  const topY = topPad;
-  const botY = topPad + chartHeight;
-
   const svg = [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${totalHeight}">`,
     `  <defs>`,
-    `    <clipPath id="${clipAboveId}"><rect x="0" y="${topY}" width="${width}" height="${midY - topY}"/></clipPath>`,
-    `    <clipPath id="${clipBelowId}"><rect x="0" y="${midY}" width="${width}" height="${botY - midY}"/></clipPath>`,
+    `    <clipPath id="clipAbove"><rect x="0" y="${topPad}" width="${width}" height="${midY - topPad}"/></clipPath>`,
+    `    <clipPath id="clipBelow"><rect x="0" y="${midY}" width="${width}" height="${chartHeight / 2}"/></clipPath>`,
     `  </defs>`,
     `  <line x1="0" y1="${midY}" x2="${width}" y2="${midY}" stroke="${escSvg(labelColor)}" stroke-width="1" opacity="0.4"/>`,
     `  <path d="${posFill}" fill="${escSvg(positiveColor)}" fill-opacity="${fillOpacity}"/>`,
     `  <path d="${negFill}" fill="${escSvg(negativeColor)}" fill-opacity="${fillOpacity}"/>`,
-    `  <path d="${linePath}" fill="none" stroke="${escSvg(positiveColor)}" stroke-width="1.5" opacity="0.9" clip-path="url(#${clipAboveId})"/>`,
-    `  <path d="${linePath}" fill="none" stroke="${escSvg(negativeColor)}" stroke-width="1.5" opacity="0.9" clip-path="url(#${clipBelowId})"/>`,
+    `  <path d="${linePath}" fill="none" stroke="${escSvg(positiveColor)}" stroke-width="1.5" opacity="0.9" clip-path="url(#clipAbove)"/>`,
+    `  <path d="${linePath}" fill="none" stroke="${escSvg(negativeColor)}" stroke-width="1.5" opacity="0.9" clip-path="url(#clipBelow)"/>`,
     peakEl,
     ...labelEls,
     `</svg>`,
