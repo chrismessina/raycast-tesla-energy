@@ -68,7 +68,7 @@ function Command() {
                     ? COLORS.batteryPos.tint
                     : status.battery_power < -50
                       ? COLORS.batteryNeg.tint
-                      : COLORS.gridPos.tint,
+                      : Color.SecondaryText,
               }}
               title={batteryTitle(status.battery_power)}
               onAction={() => {}}
