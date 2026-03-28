@@ -187,6 +187,106 @@ export function barChart(values: number[], color: string, options: ChartOptions 
 }
 
 /**
+ * Renders a bidirectional area/line chart anchored at a vertical midpoint.
+ * Positive values fill upward (positiveColor), negative values fill downward (negativeColor).
+ * Used for Powerwall and Grid day-view charts.
+ */
+export function biAreaChart(
+  values: number[],
+  positiveColor: string,
+  negativeColor: string,
+  options: ChartOptions = {},
+): string {
+  const { width = 500, fillOpacity = 0.6, labelColor = "#AAAAAA", xLabels, peakLabel } = options;
+  const hasLabels = xLabels && xLabels.length > 0;
+  const topPad = peakLabel ? PEAK_LABEL_HEIGHT : 0;
+  const botPad = hasLabels ? X_LABEL_HEIGHT : 0;
+  const chartHeight = (options.height ?? 120) - topPad - botPad;
+  const totalHeight = chartHeight + topPad + botPad;
+  const n = values.length;
+  const midY = topPad + chartHeight / 2;
+  const absMax = Math.max(...values.map(Math.abs), 1);
+
+  if (n === 0) {
+    return toDataUri(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${totalHeight}"/>`);
+  }
+
+  const xs = values.map((_, i) => (i / Math.max(n - 1, 1)) * width);
+  // Map each value to a y coordinate relative to midY (positive up, negative down)
+  const ys = values.map((v) => midY - (v / absMax) * (chartHeight / 2 - 2));
+
+  // Build a cubic bezier path through all points
+  function buildPath(pts: { x: number; y: number }[]): string {
+    if (pts.length === 0) return "";
+    let d = `M ${pts[0].x},${pts[0].y}`;
+    for (let i = 1; i < pts.length; i++) {
+      const cpx1 = pts[i - 1].x + (pts[i].x - pts[i - 1].x) / 3;
+      const cpy1 = pts[i - 1].y;
+      const cpx2 = pts[i].x - (pts[i].x - pts[i - 1].x) / 3;
+      const cpy2 = pts[i].y;
+      d += ` C ${cpx1},${cpy1} ${cpx2},${cpy2} ${pts[i].x},${pts[i].y}`;
+    }
+    return d;
+  }
+
+  const pts = xs.map((x, i) => ({ x, y: ys[i] }));
+  const linePath = buildPath(pts);
+
+  // Positive fill: clip values below midY to midY
+  const posYs = ys.map((y) => Math.min(y, midY));
+  const posPts = xs.map((x, i) => ({ x, y: posYs[i] }));
+  const posLine = buildPath(posPts);
+  const posFill = `${posLine} L ${xs[n - 1]},${midY} L ${xs[0]},${midY} Z`;
+
+  // Negative fill: clip values above midY to midY
+  const negYs = ys.map((y) => Math.max(y, midY));
+  const negPts = xs.map((x, i) => ({ x, y: negYs[i] }));
+  const negLine = buildPath(negPts);
+  const negFill = `${negLine} L ${xs[n - 1]},${midY} L ${xs[0]},${midY} Z`;
+
+  const labelEls: string[] = [];
+  if (hasLabels) {
+    const indices = pickLabelIndices(n, 6);
+    for (const idx of indices) {
+      if (xLabels[idx]) {
+        const lx = Math.round(xs[idx]);
+        const anchor = idx === 0 ? "start" : idx === n - 1 ? "end" : "middle";
+        labelEls.push(
+          `  <text x="${lx}" y="${totalHeight - 2}" font-size="9" fill="${escSvg(labelColor)}" text-anchor="${anchor}" font-family="sans-serif">${escSvg(xLabels[idx])}</text>`,
+        );
+      }
+    }
+  }
+
+  const peakEl = peakLabel
+    ? `  <text x="${width - 2}" y="${PEAK_LABEL_HEIGHT - 1}" font-size="9" fill="${escSvg(labelColor)}" text-anchor="end" font-family="sans-serif">${escSvg(peakLabel)}</text>`
+    : "";
+
+  const clipAboveId = "clipAbove";
+  const clipBelowId = "clipBelow";
+  const topY = topPad;
+  const botY = topPad + chartHeight;
+
+  const svg = [
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${totalHeight}">`,
+    `  <defs>`,
+    `    <clipPath id="${clipAboveId}"><rect x="0" y="${topY}" width="${width}" height="${midY - topY}"/></clipPath>`,
+    `    <clipPath id="${clipBelowId}"><rect x="0" y="${midY}" width="${width}" height="${botY - midY}"/></clipPath>`,
+    `  </defs>`,
+    `  <line x1="0" y1="${midY}" x2="${width}" y2="${midY}" stroke="${escSvg(labelColor)}" stroke-width="1" opacity="0.4"/>`,
+    `  <path d="${posFill}" fill="${escSvg(positiveColor)}" fill-opacity="${fillOpacity}"/>`,
+    `  <path d="${negFill}" fill="${escSvg(negativeColor)}" fill-opacity="${fillOpacity}"/>`,
+    `  <path d="${linePath}" fill="none" stroke="${escSvg(positiveColor)}" stroke-width="1.5" opacity="0.9" clip-path="url(#${clipAboveId})"/>`,
+    `  <path d="${linePath}" fill="none" stroke="${escSvg(negativeColor)}" stroke-width="1.5" opacity="0.9" clip-path="url(#${clipBelowId})"/>`,
+    peakEl,
+    ...labelEls,
+    `</svg>`,
+  ].join("\n");
+
+  return toDataUri(svg);
+}
+
+/**
  * Renders a bidirectional vertical bar chart with baseline at vertical midpoint.
  * Positive values extend upward (positiveColor), negative values extend downward (negativeColor).
  * Used for Powerwall and Grid charts across all periods.
@@ -197,7 +297,7 @@ export function biChart(
   negativeColor: string,
   options: ChartOptions = {},
 ): string {
-  const { width = 500, gridlineColor = "#555555", labelColor = "#AAAAAA", xLabels, peakLabel } = options;
+  const { width = 500, labelColor = "#AAAAAA", xLabels, peakLabel } = options;
   const hasLabels = xLabels && xLabels.length > 0;
   const topPad = peakLabel ? PEAK_LABEL_HEIGHT : 0;
   const botPad = hasLabels ? X_LABEL_HEIGHT : 0;

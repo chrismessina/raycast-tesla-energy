@@ -32,6 +32,15 @@
   ],
   "preferences": [
     {
+      "name": "showTodaySummary",
+      "title": "Today Summary",
+      "description": "Show a brief overview of today's energy activity",
+      "type": "checkbox",
+      "default": true,
+      "required": false,
+      "label": "Show"
+    },
+    {
       "name": "verboseLogging",
       "title": "Verbose Logging",
       "description": "Enable detailed logging for debugging Tesla API calls",

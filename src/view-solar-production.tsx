@@ -1,6 +1,18 @@
-import { Action, ActionPanel, Color, Detail, Icon, showToast, Toast, environment, Clipboard } from "@raycast/api";
+import {
+  Action,
+  ActionPanel,
+  Color,
+  Detail,
+  Icon,
+  showToast,
+  Toast,
+  environment,
+  Clipboard,
+  AI,
+  getPreferenceValues,
+} from "@raycast/api";
 import { withAccessToken } from "@raycast/utils";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   provider,
   getToken,
@@ -29,7 +41,8 @@ import {
   batteryPoints,
   gridPoints,
 } from "./utils/energyCalc";
-import { areaChart, barChart, biChart } from "./utils/svgChart";
+import { getCachedAiInsight, setCachedAiInsight } from "./tesla";
+import { areaChart, barChart, biAreaChart, biChart } from "./utils/svgChart";
 
 const PERIOD_LABELS: Record<Period, string> = {
   day: "Today",
@@ -37,6 +50,27 @@ const PERIOD_LABELS: Record<Period, string> = {
   month: "This Month",
   year: "Year to Date",
 };
+
+// Chart hex colors (dark / light variants) and matching Raycast Color tints for sidebar icons.
+// Single source of truth — update here to change both charts and sidebar simultaneously.
+const COLORS = {
+  solar: { dark: "#C9A227", light: "#B8860B", tint: Color.Yellow },
+  home: { dark: "#7B68EE", light: "#6A5ACD", tint: Color.Purple },
+  batteryPos: { dark: "#30D158", light: "#248A3D", tint: Color.Green }, // discharging
+  batteryNeg: { dark: "#FF9F0A", light: "#C96D00", tint: Color.Orange }, // charging
+  gridPos: { dark: "#AEAEB2", light: "#8E8E93", tint: Color.SecondaryText }, // importing
+  gridNeg: { dark: "#5AC8FA", light: "#007AFF", tint: Color.Blue }, // exporting
+  selfPower: { tint: Color.Green },
+} as const;
+
+const ICONS = {
+  selfPower: Icon.Leaf,
+  solar: Icon.Sun,
+  home: Icon.House,
+  battery: Icon.Battery,
+  charging: Icon.BatteryCharging,
+  grid: Icon.Plug,
+} as const;
 
 function resolveColor(isDark: boolean, dark: string, light: string): string {
   return isDark ? dark : light;
@@ -52,18 +86,43 @@ function xLabelsForDay(entries: EnergyHistoryEntry[]): string[] {
   return entries.map((e) => new Date(e.timestamp).toLocaleTimeString(undefined, { hour: "numeric" }));
 }
 
+function buildInsightPrompt(entries: EnergyHistoryEntry[], selfConsumption: SelfConsumption | null): string {
+  const solar = formatEnergy(totalSolarGenerated(entries));
+  const home = formatEnergy(totalHomeUsed(entries));
+  const discharged = formatEnergy(totalBatteryDischarged(entries));
+  const charged = formatEnergy(totalBatteryCharged(entries));
+  const gridNet = totalGridNet(entries);
+  const gridDesc =
+    gridNet < 0
+      ? `exported ${formatEnergy(Math.abs(gridNet))} to the grid`
+      : `imported ${formatEnergy(gridNet)} from the grid`;
+  const selfPct = selfConsumption ? `${selfConsumption.solar + selfConsumption.battery}%` : "unknown";
+
+  return `You are a Tesla Powerwall energy assistant. Given today's energy data, write a 2-3 sentence plain-English status summary explaining what the system has been doing and why. Be specific about the numbers. Do not use bullet points or headers — just concise prose.
+
+Today's data so far:
+- Solar generated: ${solar}
+- Home used: ${home}
+- Powerwall discharged: ${discharged}
+- Powerwall charged: ${charged}
+- Grid: ${gridDesc}
+- Self-powered: ${selfPct} of home energy came from solar or Powerwall
+
+Focus on the most interesting pattern (e.g. whether the Powerwall is primarily charging or discharging, how well solar is covering home demand, and any notable grid behavior).`;
+}
+
 function buildCharts(entries: EnergyHistoryEntry[], period: Period): string {
   const isDark = environment.appearance === "dark";
   const gridlineColor = isDark ? "#555555" : "#AAAAAA";
   const labelColor = isDark ? "#CCCCCC" : "#555555";
   const opts = { width: 500, height: 134, gridlineColor, labelColor };
 
-  const solarColor = resolveColor(isDark, "#C9A227", "#B8860B");
-  const homeColor = resolveColor(isDark, "#7B68EE", "#6A5ACD");
-  const batteryPos = resolveColor(isDark, "#30D158", "#248A3D");
-  const batteryNeg = resolveColor(isDark, "#30D158", "#248A3D");
-  const gridPos = resolveColor(isDark, "#AEAEB2", "#8E8E93");
-  const gridNeg = resolveColor(isDark, "#5AC8FA", "#007AFF");
+  const solarColor = resolveColor(isDark, COLORS.solar.dark, COLORS.solar.light);
+  const homeColor = resolveColor(isDark, COLORS.home.dark, COLORS.home.light);
+  const batteryPos = resolveColor(isDark, COLORS.batteryPos.dark, COLORS.batteryPos.light);
+  const batteryNeg = resolveColor(isDark, COLORS.batteryNeg.dark, COLORS.batteryNeg.light);
+  const gridPos = resolveColor(isDark, COLORS.gridPos.dark, COLORS.gridPos.light);
+  const gridNeg = resolveColor(isDark, COLORS.gridNeg.dark, COLORS.gridNeg.light);
 
   if (period === "day") {
     const xLabels = xLabelsForDay(entries);
@@ -74,8 +133,8 @@ function buildCharts(entries: EnergyHistoryEntry[], period: Period): string {
     return [
       `### Solar\n\n![Solar](${areaChart(solar, solarColor, { ...opts, xLabels, peakLabel: peakKwh(solar) })})`,
       `### Home\n\n![Home](${areaChart(home, homeColor, { ...opts, xLabels, peakLabel: peakKwh(home) })})`,
-      `### Powerwall\n\n![Powerwall](${biChart(battery, batteryPos, batteryNeg, { ...opts, peakLabel: peakKwh(battery.map(Math.abs)) })})`,
-      `### Grid\n\n![Grid](${biChart(grid, gridPos, gridNeg, { ...opts, peakLabel: peakKwh(grid.map(Math.abs)) })})`,
+      `### Powerwall\n\n![Powerwall](${biAreaChart(battery, batteryPos, batteryNeg, { ...opts, xLabels, peakLabel: peakKwh(battery.map(Math.abs)) })})`,
+      `### Grid\n\n![Grid](${biAreaChart(grid, gridPos, gridNeg, { ...opts, xLabels, peakLabel: peakKwh(grid.map(Math.abs)) })})`,
     ].join("\n\n");
   }
 
@@ -107,44 +166,37 @@ function powerwallLabel(siteInfo: SiteInfo | null): string {
 
 function Command() {
   const token = getToken();
-  const siteIdRef = useRef<number | null>(null);
   const [entries, setEntries] = useState<EnergyHistoryEntry[]>([]);
   const [siteInfo, setSiteInfo] = useState<SiteInfo | null>(null);
   const [selfConsumption, setSelfConsumption] = useState<SelfConsumption | null>(null);
   const [period, setPeriod] = useState<Period>("day");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  async function resolveSiteId(): Promise<number | null> {
-    if (siteIdRef.current !== null) return siteIdRef.current;
-    const sites = await fetchEnergySites(token);
-    if (sites.length === 0) return null;
-    siteIdRef.current = sites[0].energy_site_id;
-    return siteIdRef.current;
-  }
+  const [aiInsight, setAiInsight] = useState<string | null>(null);
 
   async function loadData(p: Period) {
     try {
       setIsLoading(true);
       setError(null);
 
-      const siteId = await resolveSiteId();
-      if (siteId === null) {
+      const sites = await fetchEnergySites(token);
+      if (sites.length === 0) {
         setError("No Tesla energy sites found on your account.");
         return;
       }
+      const siteId = sites[0].energy_site_id;
 
       const { startDate, endDate } = getDateRange(p);
 
       const [historyData, info, sc] = await Promise.all([
         fetchEnergyHistory(token, siteId, p, startDate, endDate),
-        siteInfo === null ? fetchSiteInfo(token, siteId) : Promise.resolve(siteInfo),
+        fetchSiteInfo(token, siteId),
         fetchSelfConsumption(token, siteId, p, startDate, endDate),
       ]);
 
       setEntries(historyData);
+      setSiteInfo(info);
       setSelfConsumption(sc);
-      if (siteInfo === null) setSiteInfo(info);
     } catch (e) {
       const message = e instanceof Error ? e.message : "Unknown error";
       setError(message);
@@ -165,6 +217,41 @@ function Command() {
   useEffect(() => {
     loadData(period);
   }, [period]);
+
+  useEffect(() => {
+    const { showTodaySummary } = getPreferenceValues<Preferences>();
+    if (!showTodaySummary || period !== "day" || entries.length === 0 || !environment.canAccess(AI)) return;
+
+    const today = new Date().toISOString().slice(0, 10);
+    const cached = getCachedAiInsight(today);
+    if (cached) {
+      setAiInsight(cached);
+      return;
+    }
+
+    let cancelled = false;
+    let accumulated = "";
+    const prompt = buildInsightPrompt(entries, selfConsumption);
+    const response = AI.ask(prompt, { creativity: "low" });
+
+    response.on("data", (chunk: string) => {
+      if (cancelled) return;
+      accumulated += chunk;
+      setAiInsight(accumulated);
+    });
+
+    response
+      .then(() => {
+        if (!cancelled && accumulated) setCachedAiInsight(today, accumulated);
+      })
+      .catch(() => {
+        // fail silently — insight is non-critical
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [period, entries, selfConsumption]);
 
   if (error) {
     return (
@@ -188,10 +275,11 @@ function Command() {
   const hasData = entries.length > 0;
   const periodLabel = PERIOD_LABELS[period];
   const pwLabel = powerwallLabel(siteInfo);
+  const insightBlock = period === "day" && aiInsight ? `_${aiInsight}_\n\n` : "";
   const chartsMarkdown = isLoading
     ? ""
     : hasData
-      ? `## ${periodLabel}\n\n${buildCharts(entries, period)}`
+      ? `## ${periodLabel}\n\n${insightBlock}${buildCharts(entries, period)}`
       : `## ${periodLabel}\n\n_No data available for this period._`;
 
   return (
@@ -205,13 +293,22 @@ function Command() {
               <>
                 <Detail.Metadata.Label
                   title="Self-Powered"
+                  icon={{ source: ICONS.selfPower, tintColor: COLORS.selfPower.tint }}
                   text={`${selfConsumption.solar + selfConsumption.battery}%`}
-                  icon={{ source: Icon.Leaf, tintColor: Color.Green }}
                 />
-                <Detail.Metadata.Label title="☀️ Solar" text={`${selfConsumption.solar}%`} />
-                <Detail.Metadata.Label title="🔋 Powerwall" text={`${selfConsumption.battery}%`} />
                 <Detail.Metadata.Label
-                  title="⚡ Grid"
+                  title="Solar"
+                  icon={{ source: ICONS.solar, tintColor: COLORS.solar.tint }}
+                  text={`${selfConsumption.solar}%`}
+                />
+                <Detail.Metadata.Label
+                  title="Powerwall"
+                  icon={{ source: ICONS.battery, tintColor: COLORS.batteryPos.tint }}
+                  text={`${selfConsumption.battery}%`}
+                />
+                <Detail.Metadata.Label
+                  title="Grid"
+                  icon={{ source: ICONS.grid, tintColor: COLORS.gridPos.tint }}
                   text={`${100 - selfConsumption.solar - selfConsumption.battery}%`}
                 />
                 <Detail.Metadata.Separator />
@@ -219,34 +316,35 @@ function Command() {
             )}
             <Detail.Metadata.Label
               title="Solar Production"
+              icon={{ source: ICONS.solar, tintColor: COLORS.solar.tint }}
               text={`${formatEnergy(totalSolarGenerated(entries))} Generated`}
-              icon={{ source: Icon.Sun, tintColor: Color.Yellow }}
             />
             <Detail.Metadata.Separator />
             <Detail.Metadata.Label
               title="Home Consumption"
+              icon={{ source: ICONS.home, tintColor: COLORS.home.tint }}
               text={`${formatEnergy(totalHomeUsed(entries))} Used`}
-              icon={{ source: Icon.House, tintColor: Color.Blue }}
             />
             <Detail.Metadata.Separator />
             <Detail.Metadata.Label
               title={`${pwLabel} Discharged`}
+              icon={{ source: ICONS.battery, tintColor: COLORS.batteryPos.tint }}
               text={formatEnergy(totalBatteryDischarged(entries))}
-              icon={{ source: Icon.Battery, tintColor: Color.Green }}
             />
             <Detail.Metadata.Label
               title={`${pwLabel} Charged`}
+              icon={{ source: ICONS.charging, tintColor: COLORS.batteryNeg.tint }}
               text={formatEnergy(totalBatteryCharged(entries))}
-              icon={{ source: Icon.BatteryCharging, tintColor: Color.Green }}
             />
             <Detail.Metadata.Separator />
             <Detail.Metadata.Label
-              title="Grid Net"
+              title={totalGridNet(entries) < 0 ? "Grid Net (exported)" : "Grid Net (imported)"}
+              icon={{
+                source: ICONS.grid,
+                tintColor: totalGridNet(entries) < 0 ? COLORS.gridNeg.tint : COLORS.gridPos.tint,
+              }}
               text={formatEnergy(totalGridNet(entries))}
-              icon={{ source: Icon.Signal3, tintColor: totalGridNet(entries) < 0 ? Color.Green : Color.Orange }}
             />
-            <Detail.Metadata.Separator />
-            <Detail.Metadata.Label title="Period" text={periodLabel} />
           </Detail.Metadata>
         ) : null
       }

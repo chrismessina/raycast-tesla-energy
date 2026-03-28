@@ -1,4 +1,4 @@
-import { OAuth } from "@raycast/api";
+import { OAuth, Cache } from "@raycast/api";
 import { OAuthService, getAccessToken } from "@raycast/utils";
 import { Logger } from "@chrismessina/raycast-logger";
 import type { Period } from "./utils/energyCalc";
@@ -6,6 +6,61 @@ import type { Period } from "./utils/energyCalc";
 // --- Configuration ---
 
 const API_BASE = "https://fleet-api.prd.na.vn.cloud.tesla.com";
+
+// --- Cache ---
+
+const cache = new Cache({ namespace: "tesla-energy" });
+
+const TTL_MS = {
+  energySites: 24 * 60 * 60 * 1000,
+  siteInfo: 24 * 60 * 60 * 1000,
+  historyDay: 5 * 60 * 1000,
+  historyWeekMonth: 15 * 60 * 1000,
+  historyYear: 60 * 60 * 1000,
+  aiInsight: 60 * 60 * 1000,
+} as const;
+
+interface CacheEntry<T> {
+  data: T;
+  cachedAt: number;
+}
+
+function getCached<T>(key: string, ttlMs: number): T | undefined {
+  const raw = cache.get(key);
+  if (!raw) return undefined;
+  try {
+    const entry = JSON.parse(raw) as CacheEntry<T>;
+    if (Date.now() - entry.cachedAt > ttlMs) {
+      cache.remove(key);
+      return undefined;
+    }
+    return entry.data;
+  } catch {
+    return undefined;
+  }
+}
+
+function setCached<T>(key: string, data: T): void {
+  cache.set(key, JSON.stringify({ data, cachedAt: Date.now() }));
+}
+
+function toCalendarDate(isoString: string): string {
+  return isoString.slice(0, 10);
+}
+
+function historyTtl(period: Period): number {
+  if (period === "day") return TTL_MS.historyDay;
+  if (period === "year") return TTL_MS.historyYear;
+  return TTL_MS.historyWeekMonth;
+}
+
+export function getCachedAiInsight(date: string): string | undefined {
+  return getCached<string>(`ai_insight:${date}`, TTL_MS.aiInsight);
+}
+
+export function setCachedAiInsight(date: string, insight: string): void {
+  setCached(`ai_insight:${date}`, insight);
+}
 
 // --- Logger ---
 
@@ -152,13 +207,20 @@ async function apiFetch<T>(path: string, token: string): Promise<T> {
     throw new Error(`Tesla API error (${response.status}): ${text}`);
   }
 
-  const data = await response.json();
+  const data = (await response.json()) as { response: T };
   log.debug("API response", { status: response.status, path });
   done({ status: response.status });
-  return data.response as T;
+  return data.response;
 }
 
 export async function fetchEnergySites(token: string): Promise<EnergySite[]> {
+  const cacheKey = "energy_sites";
+  const cached = getCached<EnergySite[]>(cacheKey, TTL_MS.energySites);
+  if (cached !== undefined) {
+    log.debug("Cache hit: energy sites");
+    return cached;
+  }
+
   log.step(1, "Fetching energy sites");
   const products = await apiFetch<unknown[]>("/api/1/products", token);
   const sites = products.filter((p): p is EnergySite => typeof p === "object" && p !== null && "energy_site_id" in p);
@@ -166,6 +228,8 @@ export async function fetchEnergySites(token: string): Promise<EnergySite[]> {
     count: sites.length,
     sites: sites.map((s) => ({ id: s.energy_site_id, name: s.site_name })),
   });
+  setCached(cacheKey, sites);
+  log.debug("Cache write: energy sites");
   return sites;
 }
 
@@ -182,8 +246,18 @@ export async function fetchLiveStatus(token: string, siteId: number): Promise<Li
 }
 
 export async function fetchSiteInfo(token: string, siteId: number): Promise<SiteInfo> {
+  const cacheKey = `site_info:${siteId}`;
+  const cached = getCached<SiteInfo>(cacheKey, TTL_MS.siteInfo);
+  if (cached !== undefined) {
+    log.debug("Cache hit: site info", { siteId });
+    return cached;
+  }
+
   log.step(2, "Fetching site info", { siteId });
-  return apiFetch<SiteInfo>(`/api/1/energy_sites/${siteId}/site_info`, token);
+  const result = await apiFetch<SiteInfo>(`/api/1/energy_sites/${siteId}/site_info`, token);
+  setCached(cacheKey, result);
+  log.debug("Cache write: site info", { siteId });
+  return result;
 }
 
 export async function fetchSelfConsumption(
@@ -193,6 +267,14 @@ export async function fetchSelfConsumption(
   startDate: string,
   endDate: string,
 ): Promise<SelfConsumption | null> {
+  const cacheKey = `self_consumption:${siteId}:${period}:${toCalendarDate(startDate)}`;
+  const ttl = historyTtl(period);
+  const cached = getCached<SelfConsumption | null>(cacheKey, ttl);
+  if (cached !== undefined) {
+    log.debug("Cache hit: self consumption", { siteId, period });
+    return cached;
+  }
+
   const params = new URLSearchParams({
     kind: "self_consumption",
     period,
@@ -204,7 +286,10 @@ export async function fetchSelfConsumption(
     `/api/1/energy_sites/${siteId}/calendar_history?${params}`,
     token,
   );
-  return data.time_series?.[0] ?? null;
+  const result = data.time_series?.[0] ?? null;
+  setCached(cacheKey, result);
+  log.debug("Cache write: self consumption", { siteId, period });
+  return result;
 }
 
 export async function fetchEnergyHistory(
@@ -214,14 +299,21 @@ export async function fetchEnergyHistory(
   startDate: string,
   endDate: string,
 ): Promise<EnergyHistoryEntry[]> {
+  const cacheKey = `energy_history:${siteId}:${period}:${toCalendarDate(startDate)}`;
+  const ttl = historyTtl(period);
+  const cached = getCached<EnergyHistoryEntry[]>(cacheKey, ttl);
+  if (cached !== undefined) {
+    log.debug("Cache hit: energy history", { siteId, period, entries: cached.length });
+    return cached;
+  }
+
   log.step(1, "Fetching energy history", { siteId, period, startDate, endDate });
   // Tesla's period param controls both bucket size AND date scope — it must match
   // the display period exactly. Each value returns data for the current calendar
   // period at the appropriate granularity (day=sub-hourly, week=daily, month=daily, year=monthly).
-  const apiPeriod = period;
   const params = new URLSearchParams({
     kind: "energy",
-    period: apiPeriod,
+    period,
     start_date: startDate,
     end_date: endDate,
     time_zone: LOCAL_TZ,
@@ -231,5 +323,7 @@ export async function fetchEnergyHistory(
     token,
   );
   log.info("Energy history loaded", { entries: data.time_series.length, period });
+  setCached(cacheKey, data.time_series);
+  log.debug("Cache write: energy history", { siteId, period, entries: data.time_series.length });
   return data.time_series;
 }
