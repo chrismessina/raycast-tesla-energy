@@ -22,6 +22,8 @@ import {
   EnergyHistoryEntry,
   SiteInfo,
   SelfConsumption,
+  getCachedAiInsight,
+  setCachedAiInsight,
 } from "./tesla";
 import {
   Period,
@@ -40,7 +42,6 @@ import {
   batteryPoints,
   gridPoints,
 } from "./utils/energyCalc";
-import { getCachedAiInsight, setCachedAiInsight } from "./tesla";
 import { areaChart, barChart, biAreaChart, biChart } from "./utils/svgChart";
 import { COLORS, ICONS } from "./utils/theme";
 
@@ -217,11 +218,12 @@ function Command() {
     const prompt = buildInsightPrompt(entries, selfConsumption);
     const response = AI.ask(prompt, { creativity: "low" });
 
-    response.on("data", (chunk: string) => {
+    const onData = (chunk: string) => {
       if (cancelled) return;
       accumulated += chunk;
       setAiInsight(accumulated);
-    });
+    };
+    response.on("data", onData);
 
     response
       .then(() => {
@@ -322,7 +324,7 @@ function Command() {
             />
             <Detail.Metadata.Separator />
             <Detail.Metadata.Label
-              title={gridNet < 0 ? "Grid Net (exported)" : "Grid Net (imported)"}
+              title={gridNet < 0 ? "Grid Net (exported)" : gridNet > 0 ? "Grid Net (imported)" : "Grid Net (balanced)"}
               icon={{
                 source: ICONS.grid,
                 tintColor: gridNet < 0 ? COLORS.gridNeg.tint : COLORS.gridPos.tint,
