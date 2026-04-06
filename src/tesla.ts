@@ -322,8 +322,9 @@ export async function fetchEnergyHistory(
     `/api/1/energy_sites/${siteId}/calendar_history?${params}`,
     token,
   );
-  log.info("Energy history loaded", { entries: data.time_series.length, period });
-  setCached(cacheKey, data.time_series);
-  log.debug("Cache write: energy history", { siteId, period, entries: data.time_series.length });
-  return data.time_series;
+  const timeSeries = data.time_series ?? [];
+  log.info("Energy history loaded", { entries: timeSeries.length, period });
+  setCached(cacheKey, timeSeries);
+  log.debug("Cache write: energy history", { siteId, period, entries: timeSeries.length });
+  return timeSeries;
 }
