@@ -1,5 +1,6 @@
-import { Color, Icon, MenuBarExtra, openCommandPreferences, showHUD } from "@raycast/api";
+import { Color, Icon, LaunchType, MenuBarExtra, launchCommand, openCommandPreferences, showHUD } from "@raycast/api";
 import { useCachedPromise, withAccessToken } from "@raycast/utils";
+import React from "react";
 import { provider, getToken, fetchEnergySites, fetchLiveStatus } from "./tesla";
 import { formatPower } from "./utils/energyCalc";
 import { COLORS, ICONS } from "./utils/theme";
@@ -113,4 +114,45 @@ function Command() {
   );
 }
 
-export default withAccessToken(provider)(Command);
+function AuthErrorFallback() {
+  return (
+    <MenuBarExtra icon={{ source: ICONS.solar, tintColor: Color.SecondaryText }} title="!">
+      <MenuBarExtra.Item title="Sign-in Required" icon={Icon.ExclamationMark} onAction={() => {}} />
+      <MenuBarExtra.Item
+        title="Open Solar Production to Sign In"
+        icon={Icon.ArrowRight}
+        onAction={async () => {
+          await launchCommand({ name: "view-solar-production", type: LaunchType.UserInitiated });
+        }}
+      />
+      <MenuBarExtra.Item title="Configure" icon={Icon.Gear} onAction={openCommandPreferences} />
+    </MenuBarExtra>
+  );
+}
+
+class OAuthErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError(error: Error) {
+    // Only catch OAuth background-launch errors; re-throw everything else
+    if (error?.message?.includes("OAuth") || error?.message?.includes("background")) {
+      return { hasError: true };
+    }
+    throw error;
+  }
+
+  render() {
+    if (this.state.hasError) return <AuthErrorFallback />;
+    return this.props.children;
+  }
+}
+
+const WrappedCommand = withAccessToken(provider)(Command);
+
+export default function MenuBarCommand() {
+  return (
+    <OAuthErrorBoundary>
+      <WrappedCommand />
+    </OAuthErrorBoundary>
+  );
+}
