@@ -1,7 +1,7 @@
-import { Color, Icon, LaunchType, MenuBarExtra, launchCommand, openCommandPreferences, showHUD } from "@raycast/api";
-import { useCachedPromise, withAccessToken } from "@raycast/utils";
 import React from "react";
-import { provider, getToken, fetchEnergySites, fetchLiveStatus } from "./tesla";
+import { Color, Icon, launchCommand, LaunchType, MenuBarExtra, openCommandPreferences, showHUD } from "@raycast/api";
+import { useCachedPromise, withAccessToken } from "@raycast/utils";
+import { fetchEnergySites, fetchLiveStatus, getToken, provider } from "./tesla";
 import { formatPower } from "./utils/energyCalc";
 import { COLORS, ICONS } from "./utils/theme";
 

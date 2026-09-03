@@ -1,6 +1,6 @@
-import { OAuth, Cache } from "@raycast/api";
-import { OAuthService, getAccessToken } from "@raycast/utils";
 import { Logger } from "@chrismessina/raycast-logger";
+import { Cache, OAuth } from "@raycast/api";
+import { getAccessToken, OAuthService } from "@raycast/utils";
 import type { Period } from "./utils/energyCalc";
 
 // --- Configuration ---
