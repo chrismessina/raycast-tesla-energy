@@ -14,10 +14,9 @@ menu-bar command that shows live solar wattage and refreshes every ten minutes. 
   the `412` it causes are explained.
 - Fleet-wide conventions live in Chris's `raycast-extensions` plugin at
   `/Users/messina/Developer/GitHub/chrismessina/raycast-extension-workflows/plugins/raycast-extensions/reference/house-style.md`
-  (not in this repo). In short: no `any`, never hand-define `Preferences`/`Arguments`
-  (Raycast generates them into `raycast-env.d.ts`), and every `Toast.Style.Failure` gets a
-  "Copy Error" action. They are not restated here.
-- The existing code in the area you are changing. `src/` is five files; read them.
+  (not in this repo). They are not restated here.
+- The existing code in the area you are changing. Read the relevant `src/` entry point and
+  the modules it calls.
 
 ## The trap: `calendar_history`'s `period` parameter
 
@@ -42,8 +41,9 @@ cannot widen it.
 Two corollaries, both learned the same expensive way:
 
 - **The date params are full ISO datetimes, not dates.** `getDateRange`
-  (`src/utils/energyCalc.ts:5`) returns `toISOString()` output. A bare `YYYY-MM-DD` gets a
-  `400` with `cannot parse "" as "T"`. Do not "simplify" the date formatting.
+  (`src/utils/energyCalc.ts:12,20,25,30`) returns `toISOString()` output. A bare
+  `YYYY-MM-DD` gets a `400` with `cannot parse "" as "T"`. Do not "simplify" the date
+  formatting.
 - **The client aggregates, the API does not.** Week/month/year responses go through
   `aggregateToWeek` / `aggregateToMonth` / `aggregateToYear`, which emit a **fixed** slot
   count (7 / days-in-month / 12) and zero-pad the gaps, so the chart axis is stable even
@@ -55,17 +55,24 @@ Two corollaries, both learned the same expensive way:
 `src/tesla.ts` keeps a module-level `Cache` (namespace `tesla-energy`) with TTLs of 24 h
 for sites and site info, and 5 min / 15 min / 60 min for day / week-month / year history.
 Cache keys include the period and start date, so a code change that alters the *request*
-is not reflected until the TTL expires. The **Refresh action does not bypass the cache** —
-it re-runs `loadData`, which hits `getCached` first. When iterating on request shape,
-change a cache key or wait out the TTL; do not conclude your edit had no effect.
+is not reflected until the TTL expires. In the Solar Production view the **Refresh action
+does not bypass the cache** — it re-runs `loadData` (`src/view-solar-production.tsx:339`),
+which hits `getCached` first. The menu bar's Refresh is different: it calls `revalidate()`
+(`src/menu-bar-status.tsx:105`), which re-runs the fetcher and reaches `fetchLiveStatus`
+(`src/tesla.ts:236`) — an uncached `apiFetch` — though the `fetchEnergySites` lookup in the
+same fetcher can still be served from cache. When iterating on request shape, change a cache
+key or wait out the TTL; do not conclude your edit had no effect.
 
 ## Auth: OAuth PKCE through Raycast's proxy
 
 There is no API-key preference, and there is no place to paste a token. `src/tesla.ts:83`
 builds an `OAuthService` whose `authorizeUrl` / `tokenUrl` / `refreshTokenUrl` are
-**Raycast proxy URLs** (`oauth.raycast.com/v1/...`), hardcoded because Tesla requires a
-`client_secret` at token exchange that an extension cannot hold. Those three URLs and the
-client ID are bound to Chris's registered Tesla developer app and its region — a fork
+**Raycast proxy URLs** (`oauth.raycast.com/v1/...`), hardcoded because Tesla validates
+redirect URIs strictly and may reject the `https://raycast.com/redirect?packageName=...`
+that Raycast generates, so the proxy stands in as middleware (`.github/docs/SETUP.md`
+Part 5). Separately, the Tesla client secret lives in that proxy's configuration. Those
+three URLs and the client ID are bound to Chris's registered Tesla developer app and its
+region — a fork
 cannot reuse them and cannot mint new ones without going through `SETUP.md`. Scope is
 `openid offline_access energy_device_data`; `audience` is passed as an extra parameter and
 must equal `API_BASE`.
