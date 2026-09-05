@@ -42,12 +42,12 @@
     },
     {
       "name": "verboseLogging",
-      "title": "Verbose Logging",
-      "description": "Enable detailed logging for debugging Tesla API calls",
+      "title": "Debug Logging",
+      "description": "Show detailed logs in the console for debugging.",
       "type": "checkbox",
       "default": false,
       "required": false,
-      "label": "Enable verbose logging"
+      "label": "Enable extra diagnostics in the console"
     }
   ],
   "dependencies": {
