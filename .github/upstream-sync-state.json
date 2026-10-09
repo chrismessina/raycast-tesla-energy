@@ -1,6 +1,6 @@
 {
-  "upstream_commit": "3c654737b0d566d3103fcdf72221a9f34664bdf2",
-  "synced_at": "2026-09-17T17:35:48Z",
+  "upstream_commit": "c33bf4cb4b9ad70c2b93432ee713ffb7486ed331",
+  "synced_at": "2026-10-09T16:08:02Z",
   "files": {
     ".gitignore": "d1d74b470af9921b42e263dfcec72f612db00f07",
     ".prettierrc": "fc0f5030683fa6196d08943646300755fce2f207",
@@ -14,7 +14,7 @@
     "metadata/tesla-energy-3.png": "353f3ace7344b231b2deb11c82677aba7cfbf192",
     "metadata/tesla-energy-4.png": "3bc13cb8d88bc5826aa69bd214ba8174d4068af6",
     "metadata/tesla-energy-5.png": "dc8c48581cd5f9f5158c908e56f8de57ed81b5ee",
-    "package-lock.json": "ae57bb8e3a023a14da46435eb3b94d25f40d1542",
+    "package-lock.json": "5640829193f5ac74522de521b60868012f96a069",
     "package.json": "a277be31f79d1cfba98da71a1e5b7bae839cca13",
     "src/menu-bar-status.tsx": "fce5547cb76e3c240f142896e993006136238927",
     "src/tesla.ts": "cf33eb2befd40aa6f4099e3ced1e1d033b82aabc",
