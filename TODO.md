@@ -1,5 +1,38 @@
 # TODO
 
+## Before the next Store update
+
+`rx stale` (rx main, 2026-11-20) against the published copy. `ship`'s gates run the same check, so
+each item below needs fixing or a recorded disposition before `rx gates` passes.
+
+- [ ] **`stale-upstream` FAIL on `package.json` and `package-lock.json`.** Raycast's description
+  rewrite (raycast/extensions#33590) arrived through the mirror sync (`e6c2fb5`), but on top of
+  local commits that Raycast never saw: the `@ianvs/prettier-plugin-sort-imports` dev dependency
+  (and its Babel packages in the lockfile) and the new logging preference copy ("Debug Logging",
+  "Enable extra diagnostics in the console", "Show detailed logs in the console for debugging.").
+  The published blob therefore never existed in this history. A diff on 2026-11-20 found nothing
+  upstream that the local files lack, so the next update would not revert anyone's change. Re-run
+  that diff against a fresh `rx stale` before shipping, then reconcile: either ship these edits
+  deliberately (and say so in the PR body) or bring the files back to the published copy first.
+- [ ] **`stale-deleted` WARN on `assets/menubar-extension.png`.** It moved to `media/` (`4575f0a`)
+  because it is a README image, not a runtime asset. The update deletes the published copy; record
+  a `remove-published` disposition for it in the audit.
+- [ ] **`stale-check` WARN on six paths** (`.gitignore`, `.prettierrc`, `README.md`,
+  `src/menu-bar-status.tsx`, `src/tesla.ts`, `src/view-solar-production.tsx`): the published copy
+  equals an older commit of each. Read each diff and record `keep-local` only where every hunk since
+  is yours.
+- [ ] **`stale-new` WARN on eight paths.** Decide each:
+  - `CONTRIBUTING.md`, `LICENSE`, `TODO.md`: mirror-only, listed in `.gitignore`, so they stay out
+    of the PR.
+  - `AGENTS.md`, `.claude/settings.local.json`: held out by `rx holdout` (the preset's
+    `holdout.localOnly`).
+  - `docs/superpowers/plans/…` and `docs/superpowers/specs/2026-03-24-solar-production-redesign.md`:
+    planning docs, not contributor docs. Contributor `docs/` ships by policy, but `docs/planning/`
+    does not; decide whether these ship or go in `.gitignore`.
+  - `media/menubar-extension.png`: new, ships (the README embeds it).
+- [ ] **Open issue #1**, "Tesla API error 421 – user out of region" for an EU user: unrelated to the
+  items above, but still open on the mirror.
+
 ## Solar Production Redesign
 
 _Plan: `docs/superpowers/plans/2026-03-24-solar-production-redesign.md`_
