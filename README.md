@@ -40,3 +40,5 @@ Live solar wattage in the menu bar, refreshed every 10 minutes.
 - Tesla account with solar panels and/or Powerwalls
 - Raycast will prompt you to connect your Tesla account on first use
 - Today Summary requires a Raycast Pro subscription (Raycast AI)
+
+Want to contribute? See [CONTRIBUTING.md](https://github.com/chrismessina/raycast-tesla-energy/blob/main/CONTRIBUTING.md).

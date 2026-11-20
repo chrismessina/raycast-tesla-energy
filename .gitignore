@@ -16,3 +16,4 @@ compiled_raycast_rust
 .github/docs/.private
 .windsurf
 docs/superpowers/*
+CONTRIBUTING.md
