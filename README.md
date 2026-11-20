@@ -33,7 +33,7 @@ Live solar wattage in the menu bar, refreshed every 10 minutes.
 - Shows current production, Powerwall charge level, grid status, and home consumption
 - Displays `—` when solar production is below 50 W (nighttime / minimal production)
 
-![Menu Bar Status](assets/menubar-extension.png)
+![Menu Bar Status](media/menubar-extension.png)
 
 ## Requirements
 
