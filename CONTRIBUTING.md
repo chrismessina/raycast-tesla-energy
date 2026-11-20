@@ -6,13 +6,13 @@ Thanks for helping. This guide covers running Tesla Energy locally and sending a
 
 Tesla Energy is published in the [Raycast Store](https://www.raycast.com/chrismessina/tesla-energy).
 Open pull requests against [`raycast/extensions`](https://github.com/raycast/extensions/tree/main/extensions/tesla-energy),
-not this repository: Raycast reviews every change there, and merged changes sync back here
-automatically. Open [issues](https://github.com/chrismessina/raycast-tesla-energy/issues) here or in
+not this repository: Raycast reviews every change there, and merged changes come back here in a
+sync pull request. Open [issues](https://github.com/chrismessina/raycast-tesla-energy/issues) here or in
 `raycast/extensions`, whichever you prefer.
 
 ## Run it locally
 
-You need [Raycast](https://www.raycast.com/) and Node.js 22 or later.
+You need [Raycast](https://www.raycast.com/) and Node.js 22.14.0 or later.
 
 1. In Raycast, find Tesla Energy in the Store and choose **Fork Extension** from the action panel.
    Raycast checks out only this extension's folder from `raycast/extensions`.
@@ -30,6 +30,8 @@ connect the account on first run. The Today Summary needs Raycast AI (Raycast Pr
 | `npm run build` | Build the distribution bundle |
 | `npm run lint` | Run Raycast's ESLint and Prettier checks |
 | `npm run fix-lint` | Fix what the linter can fix |
+| `npm run publish` | Open or update the pull request in `raycast/extensions` (`ray publish`) |
+| `prepublishOnly` | Stops `npm publish`: the extension goes to the Raycast Store, never to the npm registry |
 
 ## How it works
 
